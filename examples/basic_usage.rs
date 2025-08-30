@@ -1,8 +1,8 @@
-use lighter_rust::{AccountTier, Config, LighterClient, OrderType, Side};
+use lighter_rust::{init_logging, AccountTier, Config, LighterClient, OrderType, Side};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::init();
+    init_logging();
 
     // Create configuration
     let config = Config::new().with_api_key("your-api-key").with_timeout(60);

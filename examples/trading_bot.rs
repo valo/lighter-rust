@@ -1,10 +1,10 @@
-use lighter_rust::{CandlestickInterval, Config, LighterClient, OrderType, Side};
+use lighter_rust::{init_logging, CandlestickInterval, Config, LighterClient, OrderType, Side};
 use std::collections::VecDeque;
 use tokio::time::{sleep, Duration};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::init();
+    init_logging();
 
     // Configuration
     let config = Config::new().with_api_key("your-api-key").with_timeout(30);
@@ -49,7 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Calculate SMA if we have enough data points
         if price_history.len() == sma_period {
             let sma = price_history.iter().sum::<f64>() / sma_period as f64;
-            println!("SMA({})}: ${:.2}", sma_period, sma);
+            println!("SMA({}): ${:.2}", sma_period, sma);
 
             // Simple trading logic: buy when price is above SMA, sell when below
             if current_price > sma && !position_open {

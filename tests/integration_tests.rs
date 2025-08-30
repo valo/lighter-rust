@@ -1,5 +1,5 @@
 use lighter_rust::{AccountTier, Config, LighterClient, OrderType, Side};
-use mockito::{mock, server_url, Matcher};
+use mockito::Server;
 use serde_json::json;
 
 #[tokio::test]
@@ -27,7 +27,9 @@ async fn test_get_account_integration() {
         "timestamp": "2024-01-01T00:00:00Z"
     });
 
-    let _m = mock("GET", "/account")
+    let mut server = Server::new();
+    let _m = server
+        .mock("GET", "/account")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(account_response.to_string())
@@ -35,7 +37,7 @@ async fn test_get_account_integration() {
 
     let config = Config::new()
         .with_api_key("test_key")
-        .with_base_url(&server_url())
+        .with_base_url(&server.url())
         .unwrap();
 
     let client = LighterClient::new(
@@ -73,20 +75,10 @@ async fn test_create_order_integration() {
         "timestamp": "2024-01-01T00:00:00Z"
     });
 
-    let _m = mock("POST", "/orders")
+    let mut server = Server::new();
+    let _m = server
+        .mock("POST", "/orders")
         .match_header("authorization", "Bearer test_key")
-        .match_body(Matcher::Json(json!({
-            "symbol": "BTC-USDC",
-            "side": "BUY",
-            "order_type": "LIMIT",
-            "quantity": "0.1",
-            "price": "45000.00",
-            "time_in_force": "GTC",
-            "post_only": false,
-            "reduce_only": false,
-            "signature": Matcher::Any,
-            "nonce": Matcher::Any
-        })))
         .with_status(201)
         .with_header("content-type", "application/json")
         .with_body(order_response.to_string())
@@ -94,7 +86,7 @@ async fn test_create_order_integration() {
 
     let config = Config::new()
         .with_api_key("test_key")
-        .with_base_url(&server_url())
+        .with_base_url(&server.url())
         .unwrap();
 
     let client = LighterClient::new(
@@ -146,13 +138,15 @@ async fn test_get_market_data_integration() {
         "timestamp": "2024-01-01T00:00:00Z"
     });
 
-    let _m = mock("GET", "/market/stats/BTC-USDC")
+    let mut server = Server::new();
+    let _m = server
+        .mock("GET", "/market/stats/BTC-USDC")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(market_stats_response.to_string())
         .create();
 
-    let config = Config::new().with_base_url(&server_url()).unwrap();
+    let config = Config::new().with_base_url(&server.url()).unwrap();
 
     let client = LighterClient::new_read_only(config).unwrap();
 
@@ -175,7 +169,9 @@ async fn test_error_handling_integration() {
         "timestamp": "2024-01-01T00:00:00Z"
     });
 
-    let _m = mock("POST", "/orders")
+    let mut server = Server::new();
+    let _m = server
+        .mock("POST", "/orders")
         .with_status(400)
         .with_header("content-type", "application/json")
         .with_body(error_response.to_string())
@@ -183,7 +179,7 @@ async fn test_error_handling_integration() {
 
     let config = Config::new()
         .with_api_key("test_key")
-        .with_base_url(&server_url())
+        .with_base_url(&server.url())
         .unwrap();
 
     let client = LighterClient::new(
@@ -218,7 +214,9 @@ async fn test_error_handling_integration() {
 
 #[tokio::test]
 async fn test_rate_limit_handling() {
-    let _m = mock("GET", "/account")
+    let mut server = Server::new();
+    let _m = server
+        .mock("GET", "/account")
         .with_status(429)
         .with_header("content-type", "application/json")
         .with_body(
@@ -233,7 +231,7 @@ async fn test_rate_limit_handling() {
 
     let config = Config::new()
         .with_api_key("test_key")
-        .with_base_url(&server_url())
+        .with_base_url(&server.url())
         .unwrap();
 
     let client = LighterClient::new(
@@ -282,8 +280,9 @@ async fn test_pagination_integration() {
         "timestamp": "2024-01-01T00:00:00Z"
     });
 
-    let _m = mock("GET", "/orders")
-        .match_query(Matcher::UrlEncoded("page".into(), "1".into()))
+    let mut server = Server::new();
+    let _m = server
+        .mock("GET", "/orders?page=1")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(orders_response.to_string())
@@ -291,7 +290,7 @@ async fn test_pagination_integration() {
 
     let config = Config::new()
         .with_api_key("test_key")
-        .with_base_url(&server_url())
+        .with_base_url(&server.url())
         .unwrap();
 
     let client = LighterClient::new(

@@ -1,4 +1,8 @@
-use lighter_rust::{init_logging, signers::EthereumSigner, Config, LighterClient};
+use lighter_rust::{
+    init_logging,
+    signers::{EthereumSigner, Signer},
+    Config, LighterClient,
+};
 
 /// Example demonstrating how to use mnemonic phrases with the Lighter SDK
 ///
