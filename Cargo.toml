@@ -1,0 +1,36 @@
+[package]
+name = "lighter-rust"
+version = "0.1.0"
+edition = "2021"
+description = "Rust SDK for Lighter trading platform"
+license = "MIT"
+repository = "https://github.com/your-org/lighter-rust"
+homepage = "https://github.com/your-org/lighter-rust"
+authors = ["Your Name <your.email@example.com>"]
+keywords = ["trading", "crypto", "lighter", "sdk", "defi"]
+categories = ["api-bindings", "web-programming::http-client", "cryptography::cryptocurrencies"]
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+reqwest = { version = "0.11", features = ["json", "stream"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+url = "2.4"
+thiserror = "1.0"
+anyhow = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+hex = "0.4"
+sha3 = "0.10"
+alloy = { version = "0.5", features = ["signers", "signer-local", "rpc-types", "json-rpc"] }
+futures = "0.3"
+tungstenite = { version = "0.20", features = ["rustls-tls-native-roots"] }
+tokio-tungstenite = { version = "0.20", features = ["rustls-tls-native-roots"] }
+tracing = "0.1"
+
+[dev-dependencies]
+tokio-test = "0.4"
+mockito = "1.2"
+
+[features]
+default = []
