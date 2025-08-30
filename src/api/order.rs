@@ -1,10 +1,10 @@
 use crate::client::SignerClient;
 use crate::error::Result;
 use crate::models::{
-    Order, CreateOrderRequest, CancelOrderRequest, Trade, OrderFilter,
-    ApiResponse, Side, OrderType, TimeInForce, Pagination
+    ApiResponse, CancelOrderRequest, CreateOrderRequest, Order, OrderFilter, OrderType, Pagination,
+    Side, TimeInForce, Trade,
 };
-use crate::signers::{sign_order_payload, sign_cancel_payload};
+use crate::signers::{sign_cancel_payload, sign_order_payload};
 
 #[derive(Debug)]
 pub struct OrderApi {
@@ -29,12 +29,12 @@ impl OrderApi {
         reduce_only: Option<bool>,
     ) -> Result<Order> {
         let nonce = self.client.generate_nonce()?;
-        
+
         let side_str = match side {
             Side::Buy => "BUY",
             Side::Sell => "SELL",
         };
-        
+
         let signature = sign_order_payload(
             self.client.signer().as_ref(),
             symbol,
@@ -68,7 +68,9 @@ impl OrderApi {
         match response.data {
             Some(order) => Ok(order),
             None => Err(crate::error::LighterError::OrderValidation(
-                response.error.unwrap_or_else(|| "Failed to create order".to_string())
+                response
+                    .error
+                    .unwrap_or_else(|| "Failed to create order".to_string()),
             )),
         }
     }
@@ -81,12 +83,12 @@ impl OrderApi {
     ) -> Result<()> {
         if order_id.is_none() && client_order_id.is_none() {
             return Err(crate::error::LighterError::OrderValidation(
-                "Either order_id or client_order_id must be provided".to_string()
+                "Either order_id or client_order_id must be provided".to_string(),
             ));
         }
 
         let nonce = self.client.generate_nonce()?;
-        
+
         let signature = sign_cancel_payload(
             self.client.signer().as_ref(),
             order_id,
@@ -112,7 +114,9 @@ impl OrderApi {
         if !response.success {
             return Err(crate::error::LighterError::Api {
                 status: 400,
-                message: response.error.unwrap_or_else(|| "Failed to cancel order".to_string()),
+                message: response
+                    .error
+                    .unwrap_or_else(|| "Failed to cancel order".to_string()),
             });
         }
 
@@ -121,14 +125,9 @@ impl OrderApi {
 
     pub async fn cancel_all_orders(&self, symbol: Option<&str>) -> Result<u32> {
         let nonce = self.client.generate_nonce()?;
-        
-        let signature = sign_cancel_payload(
-            self.client.signer().as_ref(),
-            None,
-            None,
-            symbol,
-            nonce,
-        )?;
+
+        let signature =
+            sign_cancel_payload(self.client.signer().as_ref(), None, None, symbol, nonce)?;
 
         let request = CancelOrderRequest {
             order_id: None,
@@ -151,10 +150,12 @@ impl OrderApi {
                     .and_then(|v| v.as_u64())
                     .unwrap_or(0) as u32;
                 Ok(cancelled_count)
-            },
+            }
             None => Err(crate::error::LighterError::Api {
                 status: 400,
-                message: response.error.unwrap_or_else(|| "Failed to cancel all orders".to_string()),
+                message: response
+                    .error
+                    .unwrap_or_else(|| "Failed to cancel all orders".to_string()),
             }),
         }
     }
@@ -170,12 +171,17 @@ impl OrderApi {
             Some(order) => Ok(order),
             None => Err(crate::error::LighterError::Api {
                 status: 404,
-                message: response.error.unwrap_or_else(|| "Order not found".to_string()),
+                message: response
+                    .error
+                    .unwrap_or_else(|| "Order not found".to_string()),
             }),
         }
     }
 
-    pub async fn get_orders(&self, filter: Option<OrderFilter>) -> Result<(Vec<Order>, Option<Pagination>)> {
+    pub async fn get_orders(
+        &self,
+        filter: Option<OrderFilter>,
+    ) -> Result<(Vec<Order>, Option<Pagination>)> {
         let mut query_params = Vec::new();
 
         if let Some(filter) = filter {
@@ -205,27 +211,29 @@ impl OrderApi {
             format!("/orders?{}", query_params.join("&"))
         };
 
-        let response: ApiResponse<serde_json::Value> = self
-            .client
-            .api_client()
-            .get(&endpoint)
-            .await?;
+        let response: ApiResponse<serde_json::Value> =
+            self.client.api_client().get(&endpoint).await?;
 
         match response.data {
             Some(data) => {
                 let orders: Vec<Order> = serde_json::from_value(
-                    data.get("orders").cloned().unwrap_or(serde_json::Value::Array(vec![]))
-                ).unwrap_or_default();
-                
+                    data.get("orders")
+                        .cloned()
+                        .unwrap_or(serde_json::Value::Array(vec![])),
+                )
+                .unwrap_or_default();
+
                 let pagination: Option<Pagination> = data
                     .get("pagination")
                     .and_then(|p| serde_json::from_value(p.clone()).ok());
 
                 Ok((orders, pagination))
-            },
+            }
             None => Err(crate::error::LighterError::Api {
                 status: 500,
-                message: response.error.unwrap_or_else(|| "Failed to fetch orders".to_string()),
+                message: response
+                    .error
+                    .unwrap_or_else(|| "Failed to fetch orders".to_string()),
             }),
         }
     }
@@ -236,17 +244,15 @@ impl OrderApi {
             None => "/trades".to_string(),
         };
 
-        let response: ApiResponse<Vec<Trade>> = self
-            .client
-            .api_client()
-            .get(&endpoint)
-            .await?;
+        let response: ApiResponse<Vec<Trade>> = self.client.api_client().get(&endpoint).await?;
 
         match response.data {
             Some(trades) => Ok(trades),
             None => Err(crate::error::LighterError::Api {
                 status: 500,
-                message: response.error.unwrap_or_else(|| "Failed to fetch trades".to_string()),
+                message: response
+                    .error
+                    .unwrap_or_else(|| "Failed to fetch trades".to_string()),
             }),
         }
     }

@@ -5,9 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use tokio::net::TcpStream;
-use tokio_tungstenite::{
-    connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream,
-};
+use tokio_tungstenite::{connect_async, tungstenite::Message, MaybeTlsStream, WebSocketStream};
 use tracing::{debug, error, info, warn};
 
 pub type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
@@ -51,10 +49,10 @@ impl WebSocketClient {
 
     pub async fn connect(&mut self) -> Result<()> {
         info!("Connecting to WebSocket: {}", self.config.ws_url);
-        
+
         let (ws_stream, _response) = connect_async(&self.config.ws_url.to_string())
             .await
-            .map_err(LighterError::WebSocket)?;
+            .map_err(|e| LighterError::WebSocket(Box::new(e)))?;
 
         info!("WebSocket connected successfully");
         self.stream = Some(ws_stream);
@@ -70,8 +68,9 @@ impl WebSocketClient {
         };
 
         self.send_request(&request).await?;
-        self.subscriptions.insert(request_id.clone(), channel.to_string());
-        
+        self.subscriptions
+            .insert(request_id.clone(), channel.to_string());
+
         debug!("Subscribed to channel: {} with ID: {}", channel, request_id);
         Ok(request_id)
     }
@@ -87,23 +86,22 @@ impl WebSocketClient {
 
         self.send_request(&request).await?;
         self.subscriptions.remove(subscription_id);
-        
+
         debug!("Unsubscribed from subscription ID: {}", subscription_id);
         Ok(())
     }
 
     pub async fn send_request(&mut self, request: &WsRequest) -> Result<()> {
         let stream = self.stream.as_mut().ok_or_else(|| {
-            LighterError::WebSocket(tungstenite::Error::ConnectionClosed)
+            LighterError::WebSocket(Box::new(tungstenite::Error::ConnectionClosed))
         })?;
 
-        let message = serde_json::to_string(request)
-            .map_err(LighterError::Json)?;
-        
+        let message = serde_json::to_string(request).map_err(LighterError::Json)?;
+
         stream
             .send(Message::Text(message))
             .await
-            .map_err(LighterError::WebSocket)?;
+            .map_err(|e| LighterError::WebSocket(Box::new(e)))?;
 
         debug!("Sent WebSocket request: {}", request.id);
         Ok(())
@@ -111,14 +109,13 @@ impl WebSocketClient {
 
     pub async fn next_message(&mut self) -> Result<Option<Value>> {
         let stream = self.stream.as_mut().ok_or_else(|| {
-            LighterError::WebSocket(tungstenite::Error::ConnectionClosed)
+            LighterError::WebSocket(Box::new(tungstenite::Error::ConnectionClosed))
         })?;
 
         match stream.next().await {
             Some(Ok(Message::Text(text))) => {
                 debug!("Received WebSocket message: {}", text);
-                let value: Value = serde_json::from_str(&text)
-                    .map_err(LighterError::Json)?;
+                let value: Value = serde_json::from_str(&text).map_err(LighterError::Json)?;
                 Ok(Some(value))
             }
             Some(Ok(Message::Close(_))) => {
@@ -131,7 +128,7 @@ impl WebSocketClient {
                 stream
                     .send(Message::Pong(payload))
                     .await
-                    .map_err(LighterError::WebSocket)?;
+                    .map_err(|e| LighterError::WebSocket(Box::new(e)))?;
                 Ok(None)
             }
             Some(Ok(Message::Pong(_))) => {
@@ -144,7 +141,7 @@ impl WebSocketClient {
             }
             Some(Err(e)) => {
                 error!("WebSocket error: {}", e);
-                Err(LighterError::WebSocket(e))
+                Err(LighterError::WebSocket(Box::new(e)))
             }
             None => {
                 info!("WebSocket stream ended");
@@ -159,7 +156,7 @@ impl WebSocketClient {
             stream
                 .close(None)
                 .await
-                .map_err(LighterError::WebSocket)?;
+                .map_err(|e| LighterError::WebSocket(Box::new(e)))?;
             info!("WebSocket connection closed");
         }
         self.stream = None;

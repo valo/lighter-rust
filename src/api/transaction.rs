@@ -1,8 +1,8 @@
 use crate::client::SignerClient;
 use crate::error::Result;
 use crate::models::ApiResponse;
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Transaction {
@@ -63,14 +63,21 @@ impl TransactionApi {
             Some(transaction) => Ok(transaction),
             None => Err(crate::error::LighterError::Api {
                 status: 404,
-                message: response.error.unwrap_or_else(|| "Transaction not found".to_string()),
+                message: response
+                    .error
+                    .unwrap_or_else(|| "Transaction not found".to_string()),
             }),
         }
     }
 
-    pub async fn get_transactions(&self, address: &str, page: Option<u32>, limit: Option<u32>) -> Result<Vec<Transaction>> {
+    pub async fn get_transactions(
+        &self,
+        address: &str,
+        page: Option<u32>,
+        limit: Option<u32>,
+    ) -> Result<Vec<Transaction>> {
         let mut query_params = vec![format!("address={}", address)];
-        
+
         if let Some(page) = page {
             query_params.push(format!("page={}", page));
         }
@@ -80,17 +87,16 @@ impl TransactionApi {
 
         let endpoint = format!("/transactions?{}", query_params.join("&"));
 
-        let response: ApiResponse<Vec<Transaction>> = self
-            .client
-            .api_client()
-            .get(&endpoint)
-            .await?;
+        let response: ApiResponse<Vec<Transaction>> =
+            self.client.api_client().get(&endpoint).await?;
 
         match response.data {
             Some(transactions) => Ok(transactions),
             None => Err(crate::error::LighterError::Api {
                 status: 500,
-                message: response.error.unwrap_or_else(|| "Failed to fetch transactions".to_string()),
+                message: response
+                    .error
+                    .unwrap_or_else(|| "Failed to fetch transactions".to_string()),
             }),
         }
     }
@@ -106,36 +112,41 @@ impl TransactionApi {
             Some(block) => Ok(block),
             None => Err(crate::error::LighterError::Api {
                 status: 404,
-                message: response.error.unwrap_or_else(|| "Block not found".to_string()),
+                message: response
+                    .error
+                    .unwrap_or_else(|| "Block not found".to_string()),
             }),
         }
     }
 
     pub async fn get_latest_block(&self) -> Result<Block> {
-        let response: ApiResponse<Block> = self
-            .client
-            .api_client()
-            .get("/blocks/latest")
-            .await?;
+        let response: ApiResponse<Block> = self.client.api_client().get("/blocks/latest").await?;
 
         match response.data {
             Some(block) => Ok(block),
             None => Err(crate::error::LighterError::Api {
                 status: 500,
-                message: response.error.unwrap_or_else(|| "Failed to fetch latest block".to_string()),
+                message: response
+                    .error
+                    .unwrap_or_else(|| "Failed to fetch latest block".to_string()),
             }),
         }
     }
 
-    pub async fn wait_for_confirmation(&self, tx_hash: &str, required_confirmations: u32) -> Result<Transaction> {
+    pub async fn wait_for_confirmation(
+        &self,
+        tx_hash: &str,
+        required_confirmations: u32,
+    ) -> Result<Transaction> {
         let mut attempts = 0;
         let max_attempts = 60; // 5 minutes with 5-second intervals
-        
+
         loop {
             if attempts >= max_attempts {
-                return Err(crate::error::LighterError::Unknown(
-                    format!("Transaction {} not confirmed after {} attempts", tx_hash, max_attempts)
-                ));
+                return Err(crate::error::LighterError::Unknown(format!(
+                    "Transaction {} not confirmed after {} attempts",
+                    tx_hash, max_attempts
+                )));
             }
 
             match self.get_transaction(tx_hash).await {

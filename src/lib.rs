@@ -16,7 +16,7 @@
 //!
 //! ```no_run
 //! use lighter_rust::{LighterClient, Config};
-//! 
+//!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let config = Config::new().with_api_key("your-api-key");
@@ -34,6 +34,7 @@ pub mod api;
 pub mod client;
 pub mod config;
 pub mod error;
+pub mod logging;
 pub mod models;
 pub mod nonce;
 pub mod signers;
@@ -42,6 +43,7 @@ pub use api::*;
 pub use client::*;
 pub use config::Config;
 pub use error::{LighterError, Result};
+pub use logging::{init_logging, init_logging_with_filter};
 pub use models::*;
 pub use signers::*;
 
@@ -73,6 +75,22 @@ impl LighterClient {
         })
     }
 
+    /// Create a new Lighter client with a mnemonic phrase
+    pub fn from_mnemonic(config: Config, mnemonic: &str, account_index: u32) -> Result<Self> {
+        let api_client = ApiClient::new(config.clone())?;
+        let ethereum_signer = signers::EthereumSigner::from_mnemonic(mnemonic, account_index)?;
+        let signer_client = SignerClient::new(api_client, std::sync::Arc::new(ethereum_signer));
+        let ws_client = WebSocketClient::new(config);
+
+        Ok(Self {
+            account_api: AccountApi::new(signer_client.clone()),
+            order_api: OrderApi::new(signer_client.clone()),
+            transaction_api: TransactionApi::new(signer_client.clone()),
+            candlestick_api: CandlestickApi::new(signer_client),
+            ws_client,
+        })
+    }
+
     /// Create a new client with just an API key (no signing capabilities)
     pub fn new_read_only(config: Config) -> Result<Self> {
         let api_client = ApiClient::new(config.clone())?;
@@ -80,12 +98,9 @@ impl LighterClient {
 
         // For read-only client, we'll use a dummy signer that will error on signing operations
         let dummy_signer = signers::EthereumSigner::from_private_key(
-            "0000000000000000000000000000000000000000000000000000000000000001"
+            "0000000000000000000000000000000000000000000000000000000000000001",
         )?;
-        let signer_client = SignerClient::new(
-            api_client,
-            std::sync::Arc::new(dummy_signer),
-        );
+        let signer_client = SignerClient::new(api_client, std::sync::Arc::new(dummy_signer));
 
         Ok(Self {
             account_api: AccountApi::new(signer_client.clone()),

@@ -1,8 +1,8 @@
 use crate::client::SignerClient;
 use crate::error::Result;
 use crate::models::ApiResponse;
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Candlestick {
@@ -113,17 +113,16 @@ impl CandlestickApi {
 
         let endpoint = format!("/candlesticks?{}", query_params.join("&"));
 
-        let response: ApiResponse<Vec<Candlestick>> = self
-            .client
-            .api_client()
-            .get(&endpoint)
-            .await?;
+        let response: ApiResponse<Vec<Candlestick>> =
+            self.client.api_client().get(&endpoint).await?;
 
         match response.data {
             Some(candlesticks) => Ok(candlesticks),
             None => Err(crate::error::LighterError::Api {
                 status: 500,
-                message: response.error.unwrap_or_else(|| "Failed to fetch candlesticks".to_string()),
+                message: response
+                    .error
+                    .unwrap_or_else(|| "Failed to fetch candlesticks".to_string()),
             }),
         }
     }
@@ -139,23 +138,24 @@ impl CandlestickApi {
             Some(stats) => Ok(stats),
             None => Err(crate::error::LighterError::Api {
                 status: 404,
-                message: response.error.unwrap_or_else(|| "Market stats not found".to_string()),
+                message: response
+                    .error
+                    .unwrap_or_else(|| "Market stats not found".to_string()),
             }),
         }
     }
 
     pub async fn get_all_market_stats(&self) -> Result<Vec<MarketStats>> {
-        let response: ApiResponse<Vec<MarketStats>> = self
-            .client
-            .api_client()
-            .get("/market/stats")
-            .await?;
+        let response: ApiResponse<Vec<MarketStats>> =
+            self.client.api_client().get("/market/stats").await?;
 
         match response.data {
             Some(stats) => Ok(stats),
             None => Err(crate::error::LighterError::Api {
                 status: 500,
-                message: response.error.unwrap_or_else(|| "Failed to fetch market stats".to_string()),
+                message: response
+                    .error
+                    .unwrap_or_else(|| "Failed to fetch market stats".to_string()),
             }),
         }
     }
@@ -171,45 +171,48 @@ impl CandlestickApi {
             Some(ticker) => Ok(ticker),
             None => Err(crate::error::LighterError::Api {
                 status: 404,
-                message: response.error.unwrap_or_else(|| "Ticker not found".to_string()),
+                message: response
+                    .error
+                    .unwrap_or_else(|| "Ticker not found".to_string()),
             }),
         }
     }
 
     pub async fn get_all_tickers(&self) -> Result<Vec<Ticker>> {
-        let response: ApiResponse<Vec<Ticker>> = self
-            .client
-            .api_client()
-            .get("/ticker")
-            .await?;
+        let response: ApiResponse<Vec<Ticker>> = self.client.api_client().get("/ticker").await?;
 
         match response.data {
             Some(tickers) => Ok(tickers),
             None => Err(crate::error::LighterError::Api {
                 status: 500,
-                message: response.error.unwrap_or_else(|| "Failed to fetch tickers".to_string()),
+                message: response
+                    .error
+                    .unwrap_or_else(|| "Failed to fetch tickers".to_string()),
             }),
         }
     }
 
-    pub async fn get_order_book(&self, symbol: &str, depth: Option<u32>) -> Result<crate::models::OrderBook> {
+    pub async fn get_order_book(
+        &self,
+        symbol: &str,
+        depth: Option<u32>,
+    ) -> Result<crate::models::OrderBook> {
         let mut endpoint = format!("/orderbook/{}", symbol);
-        
+
         if let Some(depth) = depth {
             endpoint = format!("{}?depth={}", endpoint, depth);
         }
 
-        let response: ApiResponse<crate::models::OrderBook> = self
-            .client
-            .api_client()
-            .get(&endpoint)
-            .await?;
+        let response: ApiResponse<crate::models::OrderBook> =
+            self.client.api_client().get(&endpoint).await?;
 
         match response.data {
             Some(orderbook) => Ok(orderbook),
             None => Err(crate::error::LighterError::Api {
                 status: 404,
-                message: response.error.unwrap_or_else(|| "Order book not found".to_string()),
+                message: response
+                    .error
+                    .unwrap_or_else(|| "Order book not found".to_string()),
             }),
         }
     }

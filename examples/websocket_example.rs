@@ -1,9 +1,9 @@
-use lighter_rust::{Config, WebSocketClient};
+use lighter_rust::{init_logging, Config, WebSocketClient};
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::init();
+    init_logging();
 
     // Create WebSocket client
     let config = Config::new();
@@ -14,37 +14,50 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Connected!");
 
     // Subscribe to order book updates for BTC-USDC
-    let subscription_id = ws_client.subscribe(
-        "orderbook", 
-        Some(json!({
-            "symbol": "BTC-USDC",
-            "depth": 10
-        }))
-    ).await?;
-    
-    println!("Subscribed to order book updates with ID: {}", subscription_id);
+    let subscription_id = ws_client
+        .subscribe(
+            "orderbook",
+            Some(json!({
+                "symbol": "BTC-USDC",
+                "depth": 10
+            })),
+        )
+        .await?;
+
+    println!(
+        "Subscribed to order book updates with ID: {}",
+        subscription_id
+    );
 
     // Subscribe to trade updates
-    let trade_subscription = ws_client.subscribe(
-        "trades",
-        Some(json!({
-            "symbol": "BTC-USDC"
-        }))
-    ).await?;
-    
-    println!("Subscribed to trade updates with ID: {}", trade_subscription);
+    let trade_subscription = ws_client
+        .subscribe(
+            "trades",
+            Some(json!({
+                "symbol": "BTC-USDC"
+            })),
+        )
+        .await?;
+
+    println!(
+        "Subscribed to trade updates with ID: {}",
+        trade_subscription
+    );
 
     // Listen for messages for 30 seconds
     let mut message_count = 0;
     let start_time = std::time::Instant::now();
-    
+
     while start_time.elapsed().as_secs() < 30 {
         match ws_client.next_message().await? {
             Some(message) => {
                 message_count += 1;
-                println!("Message #{}: {}", message_count, 
-                    serde_json::to_string_pretty(&message)?);
-                
+                println!(
+                    "Message #{}: {}",
+                    message_count,
+                    serde_json::to_string_pretty(&message)?
+                );
+
                 // Only show first 10 messages to avoid spam
                 if message_count >= 10 {
                     println!("... (limiting output to first 10 messages)");

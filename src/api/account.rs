@@ -1,10 +1,8 @@
 use crate::client::SignerClient;
 use crate::error::Result;
-use crate::models::{
-    Account, AccountTier, AccountTierSwitchRequest, AccountStats,
-    ApiResponse
-};
+use crate::models::{Account, AccountStats, AccountTier, AccountTierSwitchRequest, ApiResponse};
 use serde_json::json;
+use tracing::{debug, info, instrument, warn};
 
 #[derive(Debug)]
 pub struct AccountApi {
@@ -16,41 +14,52 @@ impl AccountApi {
         Self { client }
     }
 
+    #[instrument(skip(self))]
     pub async fn get_account(&self) -> Result<Account> {
-        let response: ApiResponse<Account> = self
-            .client
-            .api_client()
-            .get("/account")
-            .await?;
+        debug!("Fetching account information");
+
+        let response: ApiResponse<Account> = self.client.api_client().get("/account").await?;
 
         match response.data {
-            Some(account) => Ok(account),
-            None => Err(crate::error::LighterError::Api {
-                status: 404,
-                message: response.error.unwrap_or_else(|| "Account not found".to_string()),
-            }),
+            Some(account) => {
+                info!("Successfully retrieved account: {}", account.id);
+                debug!(
+                    "Account tier: {:?}, Balances: {}",
+                    account.tier,
+                    account.balances.len()
+                );
+                Ok(account)
+            }
+            None => {
+                warn!("Account not found in response");
+                Err(crate::error::LighterError::Api {
+                    status: 404,
+                    message: response
+                        .error
+                        .unwrap_or_else(|| "Account not found".to_string()),
+                })
+            }
         }
     }
 
     pub async fn get_account_stats(&self) -> Result<AccountStats> {
-        let response: ApiResponse<AccountStats> = self
-            .client
-            .api_client()
-            .get("/account/stats")
-            .await?;
+        let response: ApiResponse<AccountStats> =
+            self.client.api_client().get("/account/stats").await?;
 
         match response.data {
             Some(stats) => Ok(stats),
             None => Err(crate::error::LighterError::Api {
                 status: 404,
-                message: response.error.unwrap_or_else(|| "Account stats not found".to_string()),
+                message: response
+                    .error
+                    .unwrap_or_else(|| "Account stats not found".to_string()),
             }),
         }
     }
 
     pub async fn change_account_tier(&self, target_tier: AccountTier) -> Result<()> {
         let nonce = self.client.generate_nonce()?;
-        
+
         let payload = json!({
             "target_tier": target_tier,
             "nonce": nonce
@@ -75,7 +84,9 @@ impl AccountApi {
 
         if !response.success {
             return Err(crate::error::LighterError::AccountTierSwitch(
-                response.error.unwrap_or_else(|| "Failed to change account tier".to_string())
+                response
+                    .error
+                    .unwrap_or_else(|| "Failed to change account tier".to_string()),
             ));
         }
 
@@ -84,10 +95,10 @@ impl AccountApi {
 
     pub async fn can_switch_tier(&self) -> Result<bool> {
         let account = self.get_account().await?;
-        
+
         let has_positions = !account.positions.is_empty();
         let has_open_orders = false; // TODO: Check for open orders
-        
+
         if has_positions || has_open_orders {
             return Ok(false);
         }

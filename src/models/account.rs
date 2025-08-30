@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
+use super::AccountTier;
 use chrono::{DateTime, Utc};
-use super::{AccountTier};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Account {

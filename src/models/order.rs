@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
+use super::{OrderStatus, OrderType, Side};
 use chrono::{DateTime, Utc};
-use super::{Side, OrderType, OrderStatus};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Order {

@@ -1,20 +1,19 @@
+use chrono::Utc;
 use lighter_rust::{
-    AccountTier, Side, OrderType, OrderStatus, TimeInForce,
-    Account, Balance, Position, Order, Trade,
-    ApiResponse, Pagination, OrderBook, PriceLevel
+    Account, AccountTier, ApiResponse, Balance, Order, OrderBook, OrderStatus, OrderType,
+    Pagination, Position, PriceLevel, Side, TimeInForce, Trade,
 };
 use serde_json;
-use chrono::Utc;
 
 #[test]
 fn test_account_tier_serialization() {
     let tier = AccountTier::Premium;
     let json = serde_json::to_string(&tier).unwrap();
     assert_eq!(json, "\"PREMIUM\"");
-    
+
     let deserialized: AccountTier = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized, AccountTier::Premium);
-    
+
     let tier = AccountTier::Standard;
     let json = serde_json::to_string(&tier).unwrap();
     assert_eq!(json, "\"STANDARD\"");
@@ -25,10 +24,10 @@ fn test_side_serialization() {
     let side = Side::Buy;
     let json = serde_json::to_string(&side).unwrap();
     assert_eq!(json, "\"BUY\"");
-    
+
     let deserialized: Side = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized, Side::Buy);
-    
+
     let side = Side::Sell;
     let json = serde_json::to_string(&side).unwrap();
     assert_eq!(json, "\"SELL\"");
@@ -39,10 +38,10 @@ fn test_order_type_serialization() {
     let order_type = OrderType::Market;
     let json = serde_json::to_string(&order_type).unwrap();
     assert_eq!(json, "\"MARKET\"");
-    
+
     let deserialized: OrderType = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized, OrderType::Market);
-    
+
     let order_type = OrderType::Limit;
     let json = serde_json::to_string(&order_type).unwrap();
     assert_eq!(json, "\"LIMIT\"");
@@ -53,10 +52,10 @@ fn test_order_status_serialization() {
     let status = OrderStatus::Pending;
     let json = serde_json::to_string(&status).unwrap();
     assert_eq!(json, "\"PENDING\"");
-    
+
     let deserialized: OrderStatus = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized, OrderStatus::Pending);
-    
+
     let status = OrderStatus::Filled;
     let json = serde_json::to_string(&status).unwrap();
     assert_eq!(json, "\"FILLED\"");
@@ -70,10 +69,10 @@ fn test_api_response_serialization() {
         error: None,
         timestamp: Utc::now(),
     };
-    
+
     let json = serde_json::to_string(&response).unwrap();
     let deserialized: ApiResponse<String> = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(deserialized.success, true);
     assert_eq!(deserialized.data, Some("test data".to_string()));
     assert_eq!(deserialized.error, None);
@@ -87,10 +86,10 @@ fn test_balance_serialization() {
         available: "900.50".to_string(),
         locked: "100.00".to_string(),
     };
-    
+
     let json = serde_json::to_string(&balance).unwrap();
     let deserialized: Balance = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(deserialized.asset, "USDC");
     assert_eq!(deserialized.total, "1000.50");
     assert_eq!(deserialized.available, "900.50");
@@ -118,10 +117,10 @@ fn test_order_serialization() {
         updated_at: Utc::now(),
         expires_at: None,
     };
-    
+
     let json = serde_json::to_string(&order).unwrap();
     let deserialized: Order = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(deserialized.id, "order123");
     assert_eq!(deserialized.client_order_id, Some("client123".to_string()));
     assert_eq!(deserialized.symbol, "BTC-USDC");
@@ -138,10 +137,10 @@ fn test_pagination_serialization() {
         total: 100,
         has_next: true,
     };
-    
+
     let json = serde_json::to_string(&pagination).unwrap();
     let deserialized: Pagination = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(deserialized.page, 1);
     assert_eq!(deserialized.limit, 50);
     assert_eq!(deserialized.total, 100);
@@ -173,10 +172,10 @@ fn test_order_book_serialization() {
         ],
         timestamp: Utc::now(),
     };
-    
+
     let json = serde_json::to_string(&order_book).unwrap();
     let deserialized: OrderBook = serde_json::from_str(&json).unwrap();
-    
+
     assert_eq!(deserialized.bids.len(), 2);
     assert_eq!(deserialized.asks.len(), 2);
     assert_eq!(deserialized.bids[0].price, "49900");
@@ -209,11 +208,11 @@ fn test_complex_nested_serialization() {
         "timestamp": "2024-01-01T00:00:00Z"
     }
     "#;
-    
+
     let response: ApiResponse<Account> = serde_json::from_str(json_str).unwrap();
     assert!(response.success);
     assert!(response.data.is_some());
-    
+
     let account = response.data.unwrap();
     assert_eq!(account.id, "acc123");
     assert_eq!(account.tier, AccountTier::Premium);

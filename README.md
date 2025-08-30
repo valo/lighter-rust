@@ -50,16 +50,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Examples
 
-Check out the [examples](./examples) directory for more comprehensive examples:
+Check out the [examples](./examples) directory for comprehensive examples:
 
-- [`basic_usage.rs`](./examples/basic_usage.rs) - Basic API operations
-- [`websocket_example.rs`](./examples/websocket_example.rs) - WebSocket streaming
-- [`trading_bot.rs`](./examples/trading_bot.rs) - Simple trading bot with SMA strategy
+- [**basic_usage.rs**](./examples/basic_usage.rs) - Basic API operations and getting started
+- [**websocket_example.rs**](./examples/websocket_example.rs) - Real-time WebSocket streaming
+- [**trading_bot.rs**](./examples/trading_bot.rs) - Simple trading bot with SMA strategy
+- [**advanced_order_management.rs**](./examples/advanced_order_management.rs) - Grid trading, stop-loss/take-profit
+- [**mnemonic_wallet.rs**](./examples/mnemonic_wallet.rs) - Using mnemonic phrases and HD wallets
 
 Run examples with:
 ```bash
 cargo run --example basic_usage
+cargo run --example websocket_example
+cargo run --example trading_bot
 ```
+
+## Documentation
+
+### API Documentation
+
+- [**AccountApi**](./docs/AccountApi.md) - Account management operations
+- [**OrderApi**](./docs/OrderApi.md) - Order placement and management
+- [**TransactionApi**](./docs/TransactionApi.md) - Transaction history and tracking
+- [**CandlestickApi**](./docs/CandlestickApi.md) - Market data and OHLCV
+- [**WebSocketClient**](./docs/WebSocketClient.md) - Real-time data streaming
+
+### Guides
+
+- [**Integration Guide**](./docs/IntegrationGuide.md) - Complete integration walkthrough
+- [**API Reference**](./docs/README.md) - Full API method reference
 
 ## API Coverage
 

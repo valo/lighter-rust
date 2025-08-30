@@ -14,29 +14,29 @@ impl Config {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     pub fn with_api_key<S: Into<String>>(mut self, api_key: S) -> Self {
         self.api_key = Some(api_key.into());
         self
     }
-    
+
     pub fn with_base_url<S: AsRef<str>>(mut self, url: S) -> Result<Self> {
         self.base_url = Url::parse(url.as_ref())
             .map_err(|e| LighterError::Config(format!("Invalid base URL: {}", e)))?;
         Ok(self)
     }
-    
+
     pub fn with_ws_url<S: AsRef<str>>(mut self, url: S) -> Result<Self> {
         self.ws_url = Url::parse(url.as_ref())
             .map_err(|e| LighterError::Config(format!("Invalid WebSocket URL: {}", e)))?;
         Ok(self)
     }
-    
+
     pub fn with_timeout(mut self, timeout_secs: u64) -> Self {
         self.timeout_secs = timeout_secs;
         self
     }
-    
+
     pub fn with_max_retries(mut self, max_retries: u32) -> Self {
         self.max_retries = max_retries;
         self
