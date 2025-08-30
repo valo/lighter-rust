@@ -91,7 +91,7 @@ impl ApiClient {
                     let status = response.status();
 
                     // Check if we should retry based on status code
-                    if status.as_u16() == 429 || (status.is_server_error() && retries < max_retries)
+                    if (status.as_u16() == 429 || status.is_server_error()) && retries < max_retries
                     {
                         retries += 1;
                         let delay = self.calculate_backoff_delay(retries);

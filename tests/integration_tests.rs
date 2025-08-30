@@ -1,8 +1,7 @@
 use lighter_rust::{AccountTier, Config, LighterClient, OrderType, Side};
-use mockito::Server;
 use serde_json::json;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_get_account_integration() {
     let account_response = json!({
         "success": true,
@@ -27,13 +26,14 @@ async fn test_get_account_integration() {
         "timestamp": "2024-01-01T00:00:00Z"
     });
 
-    let mut server = Server::new();
+    let mut server = mockito::Server::new_async().await;
     let _m = server
         .mock("GET", "/account")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(account_response.to_string())
-        .create();
+        .create_async()
+        .await;
 
     let config = Config::new()
         .with_api_key("test_key")
@@ -52,7 +52,7 @@ async fn test_get_account_integration() {
     assert_eq!(account.balances.len(), 1);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_create_order_integration() {
     let order_response = json!({
         "success": true,
@@ -75,14 +75,15 @@ async fn test_create_order_integration() {
         "timestamp": "2024-01-01T00:00:00Z"
     });
 
-    let mut server = Server::new();
+    let mut server = mockito::Server::new_async().await;
     let _m = server
         .mock("POST", "/orders")
         .match_header("authorization", "Bearer test_key")
         .with_status(201)
         .with_header("content-type", "application/json")
         .with_body(order_response.to_string())
-        .create();
+        .create_async()
+        .await;
 
     let config = Config::new()
         .with_api_key("test_key")
@@ -116,7 +117,7 @@ async fn test_create_order_integration() {
     assert_eq!(order.status, lighter_rust::OrderStatus::Open);
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_get_market_data_integration() {
     let market_stats_response = json!({
         "success": true,
@@ -138,13 +139,14 @@ async fn test_get_market_data_integration() {
         "timestamp": "2024-01-01T00:00:00Z"
     });
 
-    let mut server = Server::new();
+    let mut server = mockito::Server::new_async().await;
     let _m = server
         .mock("GET", "/market/stats/BTC-USDC")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(market_stats_response.to_string())
-        .create();
+        .create_async()
+        .await;
 
     let config = Config::new().with_base_url(&server.url()).unwrap();
 
@@ -160,7 +162,7 @@ async fn test_get_market_data_integration() {
     assert_eq!(stats.price_change_percent, "2.22");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_error_handling_integration() {
     let error_response = json!({
         "success": false,
@@ -169,13 +171,14 @@ async fn test_error_handling_integration() {
         "timestamp": "2024-01-01T00:00:00Z"
     });
 
-    let mut server = Server::new();
+    let mut server = mockito::Server::new_async().await;
     let _m = server
         .mock("POST", "/orders")
         .with_status(400)
         .with_header("content-type", "application/json")
         .with_body(error_response.to_string())
-        .create();
+        .create_async()
+        .await;
 
     let config = Config::new()
         .with_api_key("test_key")
@@ -205,16 +208,17 @@ async fn test_error_handling_integration() {
 
     assert!(result.is_err());
     match result.err().unwrap() {
-        lighter_rust::LighterError::OrderValidation(msg) => {
-            assert!(msg.contains("Insufficient balance"));
+        lighter_rust::LighterError::Api { status, message } => {
+            assert_eq!(status, 400);
+            assert!(message.contains("Insufficient balance"));
         }
-        _ => panic!("Expected OrderValidation error"),
+        _ => panic!("Expected Api error with status 400"),
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_rate_limit_handling() {
-    let mut server = Server::new();
+    let mut server = mockito::Server::new_async().await;
     let _m = server
         .mock("GET", "/account")
         .with_status(429)
@@ -227,12 +231,14 @@ async fn test_rate_limit_handling() {
             })
             .to_string(),
         )
-        .create();
+        .create_async()
+        .await;
 
     let config = Config::new()
         .with_api_key("test_key")
         .with_base_url(&server.url())
-        .unwrap();
+        .unwrap()
+        .with_max_retries(0);
 
     let client = LighterClient::new(
         config,
@@ -249,7 +255,7 @@ async fn test_rate_limit_handling() {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn test_pagination_integration() {
     let orders_response = json!({
         "success": true,
@@ -280,13 +286,14 @@ async fn test_pagination_integration() {
         "timestamp": "2024-01-01T00:00:00Z"
     });
 
-    let mut server = Server::new();
+    let mut server = mockito::Server::new_async().await;
     let _m = server
         .mock("GET", "/orders?page=1")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(orders_response.to_string())
-        .create();
+        .create_async()
+        .await;
 
     let config = Config::new()
         .with_api_key("test_key")
