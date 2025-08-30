@@ -4,9 +4,9 @@ version = "0.1.0"
 edition = "2021"
 description = "Rust SDK for Lighter trading platform"
 license = "MIT"
-repository = "https://github.com/your-org/lighter-rust"
-homepage = "https://github.com/your-org/lighter-rust"
-authors = ["Your Name <your.email@example.com>"]
+repository = "https://github.com/yongkangc/lighter-rust"
+homepage = "https://github.com/yongkangc/lighter-rust"
+authors = ["yongkangc"]
 keywords = ["trading", "crypto", "lighter", "sdk", "defi"]
 categories = ["api-bindings", "web-programming::http-client", "cryptography::cryptocurrencies"]
 

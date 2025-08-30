@@ -8,7 +8,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lighter-rust = { git = "https://github.com/your-username/lighter-rust" }
+lighter-rust = { git = "https://github.com/yongkangc/lighter-rust" }
 ```
 
 ## Quick Start
@@ -166,7 +166,7 @@ This is an unofficial SDK. Use at your own risk. Always test thoroughly before u
 ## Support
 
 For issues and questions:
-- Open an issue on [GitHub](https://github.com/your-username/lighter-rust/issues)
+- Open an issue on [GitHub](https://github.com/yongkangc/lighter-rust/issues)
 - Check the [API documentation](https://apibetadocs.lighter.xyz/docs)
 
 ## Related
