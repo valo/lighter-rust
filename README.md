@@ -1,10 +1,22 @@
 # Lighter Rust SDK
 
+[![Crates.io](https://img.shields.io/crates/v/lighter-rust.svg)](https://crates.io/crates/lighter-rust)
+[![Documentation](https://docs.rs/lighter-rust/badge.svg)](https://docs.rs/lighter-rust)
+[![CI](https://github.com/yongkangc/lighter-rust/actions/workflows/ci.yml/badge.svg)](https://github.com/yongkangc/lighter-rust/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Rust SDK for [Lighter](https://lighter.xyz/) (v2)
 
 ## Installation
 
 Add this to your `Cargo.toml`:
+
+```toml
+[dependencies]
+lighter-rust = "0.1.0"
+```
+
+Or use the latest from GitHub:
 
 ```toml
 [dependencies]
