@@ -23,6 +23,14 @@ lighter-rust = "0.1.0"
 tokio = { version = "1.0", features = ["full"] }
 ```
 
+Or use the latest development version from GitHub:
+
+```toml
+[dependencies]
+lighter-rust = { git = "https://github.com/yongkangc/lighter-rust" }
+tokio = { version = "1.0", features = ["full"] }
+```
+
 ## Quick Start
 
 ### Basic Setup
@@ -550,9 +558,11 @@ for price in price_levels {
 
 ## Support and Resources
 
-- **Documentation**: [API Docs](https://apibetadocs.lighter.xyz/)
-- **GitHub**: [lighter-rust](https://github.com/yongkangc/lighter-rust)
-- **Examples**: See the `examples/` directory for complete working examples
+- **Crate**: [crates.io/crates/lighter-rust](https://crates.io/crates/lighter-rust)
+- **Documentation**: [docs.rs/lighter-rust](https://docs.rs/lighter-rust)
+- **API Reference**: [Lighter API Docs](https://apibetadocs.lighter.xyz/)
+- **GitHub**: [github.com/yongkangc/lighter-rust](https://github.com/yongkangc/lighter-rust)
+- **Examples**: See the [examples/](https://github.com/yongkangc/lighter-rust/tree/master/examples) directory for complete working examples
 - **Issues**: Report bugs on [GitHub Issues](https://github.com/yongkangc/lighter-rust/issues)
 
 ## Next Steps

@@ -63,7 +63,8 @@ impl EthereumSigner {
         let mnemonic = Mnemonic::from_entropy(&entropy)
             .map_err(|e| LighterError::Signing(format!("Failed to generate mnemonic: {}", e)))?;
 
-        println!("Generated mnemonic: {}", mnemonic);
+        // Note: In production, you should save this mnemonic securely
+        // println!("Generated mnemonic: {}", mnemonic);
         Self::from_mnemonic(&mnemonic.to_string(), 0)
     }
 

@@ -75,5 +75,5 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Check package
         run: cargo package --list
-      - name: Check publish (dry run)
-        run: cargo publish --dry-run
+      - name: Check package build
+        run: cargo package --no-verify

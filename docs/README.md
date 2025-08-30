@@ -1,5 +1,8 @@
 # Lighter Rust SDK Documentation
 
+[![Crates.io](https://img.shields.io/crates/v/lighter-rust.svg)](https://crates.io/crates/lighter-rust)
+[![Documentation](https://docs.rs/lighter-rust/badge.svg)](https://docs.rs/lighter-rust)
+
 Comprehensive documentation for the Lighter Rust SDK.
 
 ## API Documentation
@@ -45,7 +48,7 @@ Comprehensive documentation for the Lighter Rust SDK.
 
 ```toml
 [dependencies]
-lighter-rust = { git = "https://github.com/yongkangc/lighter-rust" }
+lighter-rust = "0.1.0"
 ```
 
 ### Basic Usage
@@ -174,8 +177,10 @@ while let Some(msg) = ws.next_message().await? {
 
 ## Support
 
-- GitHub Issues: [https://github.com/yongkangc/lighter-rust/issues](https://github.com/yongkangc/lighter-rust/issues)
-- API Documentation: [https://apibetadocs.lighter.xyz/docs](https://apibetadocs.lighter.xyz/docs)
+- Crate: [crates.io/crates/lighter-rust](https://crates.io/crates/lighter-rust)
+- Documentation: [docs.rs/lighter-rust](https://docs.rs/lighter-rust)
+- GitHub Issues: [github.com/yongkangc/lighter-rust/issues](https://github.com/yongkangc/lighter-rust/issues)
+- API Documentation: [apibetadocs.lighter.xyz/docs](https://apibetadocs.lighter.xyz/docs)
 
 ## License
 
