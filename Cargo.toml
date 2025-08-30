@@ -2,13 +2,25 @@
 name = "lighter-rust"
 version = "0.1.0"
 edition = "2021"
-description = "Rust SDK for Lighter trading platform"
+description = "A comprehensive Rust SDK for the Lighter trading platform with async/await, WebSocket support, and Ethereum wallet integration"
 license = "MIT"
 repository = "https://github.com/yongkangc/lighter-rust"
 homepage = "https://github.com/yongkangc/lighter-rust"
+documentation = "https://docs.rs/lighter-rust"
+readme = "README.md"
 authors = ["yongkangc"]
 keywords = ["trading", "crypto", "lighter", "sdk", "defi"]
 categories = ["api-bindings", "web-programming::http-client", "cryptography::cryptocurrencies"]
+exclude = [
+    ".github/",
+    ".openapi-generator/",
+    "CLAUDE.md",
+    ".gitignore",
+    "*.swp",
+    "*.swo",
+    "*~",
+    ".DS_Store",
+]
 
 [dependencies]
 tokio = { version = "1.0", features = ["full"] }
