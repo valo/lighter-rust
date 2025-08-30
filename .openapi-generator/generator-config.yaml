@@ -1,0 +1,21 @@
+generatorName: rust
+outputDir: ../
+inputSpec: https://api.lighter.xyz/openapi.json
+additionalProperties:
+  packageName: lighter-rust
+  packageVersion: 0.1.0
+  library: reqwest
+  supportAsync: true
+  supportMultipleResponses: true
+  preferUnsignedInt: false
+  bestFitInt: true
+  hideGenerationTimestamp: true
+  useSingleRequestParameter: false
+  avoidBoxedModels: true
+  enumNameSuffix: ""
+globalProperties:
+  apis: "AccountApi,OrderApi,TransactionApi,CandlestickApi"
+  models: "Account,Order,Balance,Position,Trade,Candlestick,OrderBook,MarketStats,Ticker"
+  supportingFiles: "Cargo.toml,lib.rs"
+  apiDocs: true
+  modelDocs: true

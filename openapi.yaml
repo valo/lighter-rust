@@ -1,0 +1,736 @@
+openapi: 3.0.3
+info:
+  title: Lighter API
+  description: REST API for Lighter trading platform
+  version: 2.0.0
+  contact:
+    name: Lighter Support
+    url: https://lighter.xyz
+servers:
+  - url: https://api.lighter.xyz
+    description: Production server
+  - url: https://api-testnet.lighter.xyz
+    description: Testnet server
+paths:
+  /account:
+    get:
+      tags:
+        - Account
+      summary: Get account information
+      operationId: getAccount
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '429':
+          $ref: '#/components/responses/RateLimitError'
+  
+  /account/stats:
+    get:
+      tags:
+        - Account
+      summary: Get account statistics
+      operationId: getAccountStats
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountStatsResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  
+  /account/change-tier:
+    post:
+      tags:
+        - Account
+      summary: Change account tier
+      operationId: changeAccountTier
+      security:
+        - ApiKeyAuth: []
+        - SignatureAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountTierSwitchRequest'
+      responses:
+        '200':
+          description: Tier changed successfully
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  
+  /orders:
+    get:
+      tags:
+        - Orders
+      summary: Get orders with filters
+      operationId: getOrders
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: symbol
+          in: query
+          schema:
+            type: string
+          description: Trading pair symbol
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/OrderStatus'
+        - name: side
+          in: query
+          schema:
+            $ref: '#/components/schemas/Side'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            maximum: 500
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrdersResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    
+    post:
+      tags:
+        - Orders
+      summary: Create a new order
+      operationId: createOrder
+      security:
+        - ApiKeyAuth: []
+        - SignatureAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  
+  /orders/{orderId}:
+    get:
+      tags:
+        - Orders
+      summary: Get order by ID
+      operationId: getOrder
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  
+  /orders/cancel:
+    post:
+      tags:
+        - Orders
+      summary: Cancel an order
+      operationId: cancelOrder
+      security:
+        - ApiKeyAuth: []
+        - SignatureAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelOrderRequest'
+      responses:
+        '200':
+          description: Order cancelled successfully
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+  
+  /candlesticks:
+    get:
+      tags:
+        - Market Data
+      summary: Get candlestick data
+      operationId: getCandlesticks
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: interval
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/CandlestickInterval'
+        - name: startTime
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: endTime
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 500
+            maximum: 1000
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Candlestick'
+  
+  /orderbook/{symbol}:
+    get:
+      tags:
+        - Market Data
+      summary: Get order book
+      operationId: getOrderBook
+      parameters:
+        - name: symbol
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: depth
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderBook'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: Bearer token authentication
+    SignatureAuth:
+      type: apiKey
+      in: header
+      name: X-Signature
+      description: Request signature for write operations
+  
+  schemas:
+    Account:
+      type: object
+      required:
+        - id
+        - address
+        - tier
+        - createdAt
+        - updatedAt
+        - balances
+        - positions
+      properties:
+        id:
+          type: string
+        address:
+          type: string
+        tier:
+          $ref: '#/components/schemas/AccountTier'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        balances:
+          type: array
+          items:
+            $ref: '#/components/schemas/Balance'
+        positions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Position'
+        tierSwitchAllowedAt:
+          type: string
+          format: date-time
+          nullable: true
+    
+    Balance:
+      type: object
+      required:
+        - asset
+        - total
+        - available
+        - locked
+      properties:
+        asset:
+          type: string
+        total:
+          type: string
+        available:
+          type: string
+        locked:
+          type: string
+    
+    Position:
+      type: object
+      required:
+        - symbol
+        - side
+        - size
+        - entryPrice
+        - markPrice
+        - unrealizedPnl
+        - marginType
+        - leverage
+      properties:
+        symbol:
+          type: string
+        side:
+          $ref: '#/components/schemas/Side'
+        size:
+          type: string
+        entryPrice:
+          type: string
+        markPrice:
+          type: string
+        unrealizedPnl:
+          type: string
+        marginType:
+          $ref: '#/components/schemas/MarginType'
+        leverage:
+          type: string
+    
+    Order:
+      type: object
+      required:
+        - id
+        - symbol
+        - side
+        - orderType
+        - status
+        - quantity
+        - filledQuantity
+        - remainingQuantity
+        - timeInForce
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+        clientOrderId:
+          type: string
+          nullable: true
+        symbol:
+          type: string
+        side:
+          $ref: '#/components/schemas/Side'
+        orderType:
+          $ref: '#/components/schemas/OrderType'
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        quantity:
+          type: string
+        price:
+          type: string
+          nullable: true
+        stopPrice:
+          type: string
+          nullable: true
+        filledQuantity:
+          type: string
+        remainingQuantity:
+          type: string
+        averageFillPrice:
+          type: string
+          nullable: true
+        fee:
+          type: string
+          nullable: true
+        timeInForce:
+          $ref: '#/components/schemas/TimeInForce'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    
+    CreateOrderRequest:
+      type: object
+      required:
+        - symbol
+        - side
+        - orderType
+        - quantity
+        - signature
+        - nonce
+      properties:
+        symbol:
+          type: string
+        side:
+          $ref: '#/components/schemas/Side'
+        orderType:
+          $ref: '#/components/schemas/OrderType'
+        quantity:
+          type: string
+        price:
+          type: string
+          nullable: true
+        clientOrderId:
+          type: string
+          nullable: true
+        timeInForce:
+          $ref: '#/components/schemas/TimeInForce'
+          default: GTC
+        postOnly:
+          type: boolean
+          default: false
+        reduceOnly:
+          type: boolean
+          default: false
+        signature:
+          type: string
+        nonce:
+          type: integer
+          format: int64
+    
+    CancelOrderRequest:
+      type: object
+      required:
+        - signature
+        - nonce
+      properties:
+        orderId:
+          type: string
+          nullable: true
+        clientOrderId:
+          type: string
+          nullable: true
+        symbol:
+          type: string
+          nullable: true
+        signature:
+          type: string
+        nonce:
+          type: integer
+          format: int64
+    
+    Candlestick:
+      type: object
+      required:
+        - openTime
+        - closeTime
+        - open
+        - high
+        - low
+        - close
+        - volume
+        - quoteVolume
+        - tradeCount
+      properties:
+        openTime:
+          type: string
+          format: date-time
+        closeTime:
+          type: string
+          format: date-time
+        open:
+          type: string
+        high:
+          type: string
+        low:
+          type: string
+        close:
+          type: string
+        volume:
+          type: string
+        quoteVolume:
+          type: string
+        tradeCount:
+          type: integer
+    
+    OrderBook:
+      type: object
+      required:
+        - bids
+        - asks
+        - timestamp
+      properties:
+        bids:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceLevel'
+        asks:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceLevel'
+        timestamp:
+          type: string
+          format: date-time
+    
+    PriceLevel:
+      type: object
+      required:
+        - price
+        - quantity
+      properties:
+        price:
+          type: string
+        quantity:
+          type: string
+    
+    AccountTier:
+      type: string
+      enum:
+        - STANDARD
+        - PREMIUM
+    
+    Side:
+      type: string
+      enum:
+        - BUY
+        - SELL
+    
+    OrderType:
+      type: string
+      enum:
+        - MARKET
+        - LIMIT
+        - STOP_LOSS
+        - TAKE_PROFIT
+    
+    OrderStatus:
+      type: string
+      enum:
+        - PENDING
+        - OPEN
+        - PARTIALLY_FILLED
+        - FILLED
+        - CANCELLED
+        - REJECTED
+    
+    TimeInForce:
+      type: string
+      enum:
+        - GTC
+        - IOC
+        - FOK
+        - DAY
+    
+    MarginType:
+      type: string
+      enum:
+        - CROSS
+        - ISOLATED
+    
+    CandlestickInterval:
+      type: string
+      enum:
+        - 1m
+        - 5m
+        - 15m
+        - 30m
+        - 1h
+        - 4h
+        - 1d
+        - 1w
+    
+    ApiResponse:
+      type: object
+      required:
+        - success
+        - timestamp
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+        error:
+          type: string
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+    
+    AccountResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Account'
+    
+    OrderResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Order'
+    
+    OrdersResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                orders:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Order'
+                pagination:
+                  $ref: '#/components/schemas/Pagination'
+    
+    AccountStatsResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/AccountStats'
+    
+    AccountStats:
+      type: object
+      properties:
+        totalVolume:
+          type: string
+        makerVolume:
+          type: string
+        takerVolume:
+          type: string
+        totalFeesPaid:
+          type: string
+        totalTrades:
+          type: integer
+        winRate:
+          type: string
+        pnl:
+          type: string
+    
+    AccountTierSwitchRequest:
+      type: object
+      required:
+        - targetTier
+        - signature
+        - nonce
+      properties:
+        targetTier:
+          $ref: '#/components/schemas/AccountTier'
+        signature:
+          type: string
+        nonce:
+          type: integer
+          format: int64
+    
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        hasNext:
+          type: boolean
+    
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - error
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+  
+  responses:
+    UnauthorizedError:
+      description: Authentication failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    BadRequestError:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    NotFoundError:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    
+    RateLimitError:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
