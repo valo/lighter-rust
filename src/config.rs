@@ -46,7 +46,7 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            base_url: Url::parse("https://api.lighter.xyz").unwrap(),
+            base_url: Url::parse("https://mainnet.zklighter.elliot.ai/api/v1").unwrap(),
             ws_url: Url::parse("wss://ws.lighter.xyz").unwrap(),
             api_key: None,
             timeout_secs: 30,

@@ -22,7 +22,7 @@ impl ApiClient {
             .pool_idle_timeout(Duration::from_secs(90)) // Keep connections alive for 90 seconds
             .tcp_keepalive(Duration::from_secs(60)) // TCP keepalive every 60 seconds
             .tcp_nodelay(true) // Disable Nagle's algorithm for lower latency
-            .http2_prior_knowledge() // Use HTTP/2 when possible
+            .http1_only() // Force HTTP/1.1 for compatibility with Lighter API
             .connection_verbose(false)
             .build()
             .map_err(|e| LighterError::Http(Box::new(e)))?;
