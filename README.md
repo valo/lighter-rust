@@ -1,4 +1,4 @@
-# Lighter Rust SDK
+# Lighter Rust SDK (WIP)
 
 [![Crates.io](https://img.shields.io/crates/v/lighter-rust.svg)](https://crates.io/crates/lighter-rust)
 [![Documentation](https://docs.rs/lighter-rust/badge.svg)](https://docs.rs/lighter-rust)
@@ -49,16 +49,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
-
-## Features
-
-- ✅ Complete REST API coverage
-- ✅ WebSocket support for real-time data
-- ✅ Ethereum wallet integration using Alloy
-- ✅ Async/await with Tokio
-- ✅ Type-safe API with comprehensive error handling
-- ✅ Support for all order types (Market, Limit, Stop)
-- ✅ Account tier management (Standard/Premium)
 
 ## Examples
 
