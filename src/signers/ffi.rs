@@ -1,20 +1,19 @@
 use crate::error::{LighterError, Result};
 use crate::models::common::OrderType;
 use crate::models::order::TimeInForce;
-use crate::signers::ethereum::EthereumSigner;
-use crate::signers::ethereum::Signer as EthSigner;
 use libloading::{Library, Symbol};
 use serde::{Deserialize, Serialize};
+use serde_json;
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int, c_longlong};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-/// Result type from the Go binary
+/// Result type from the Go binary - matches Python's StrOrErr
 #[repr(C)]
 pub struct StrOrErr {
-    pub value: *mut c_char,
-    pub error: *mut c_char,
+    pub str: *mut c_char, // Note: field name is 'str' not 'value'
+    pub err: *mut c_char, // Note: field name is 'err' not 'error'
 }
 
 /// Transaction structure returned by the signer
@@ -32,14 +31,24 @@ pub struct SignedTransaction {
 /// FFI Signer that uses the native Go binaries
 pub struct FFISigner {
     library: Arc<Library>,
-    eth_signer: EthereumSigner,
+    url: String,
+    private_key: String,
+    chain_id: c_int,
     api_key_index: c_int,
     account_index: c_int,
 }
 
 impl FFISigner {
     /// Create a new FFI signer
-    pub fn new(private_key: &str, api_key_index: i32, account_index: i32) -> Result<Self> {
+    pub fn new(
+        url: &str,
+        private_key: &str,
+        api_key_index: i32,
+        account_index: i32,
+    ) -> Result<Self> {
+        // Determine chain_id from URL
+        let chain_id = if url.contains("mainnet") { 304 } else { 300 };
+
         // Determine the library path based on platform
         let lib_path = Self::get_library_path()?;
 
@@ -54,18 +63,22 @@ impl FFISigner {
             })?
         };
 
-        // Initialize the library with the private key
-        Self::initialize_library(&library, private_key)?;
+        // Remove 0x prefix if present
+        let clean_key = private_key.trim_start_matches("0x");
 
-        // Create Ethereum signer for message signing
-        let eth_signer = EthereumSigner::from_private_key(private_key)?;
-
-        Ok(Self {
+        let signer = Self {
             library: Arc::new(library),
-            eth_signer,
+            url: url.to_string(),
+            private_key: clean_key.to_string(),
+            chain_id: chain_id as c_int,
             api_key_index: api_key_index as c_int,
             account_index: account_index as c_int,
-        })
+        };
+
+        // Initialize the client
+        signer.create_client()?;
+
+        Ok(signer)
     }
 
     /// Get the library path based on the current platform
@@ -85,57 +98,69 @@ impl FFISigner {
         Ok(base_path.join("bin").join("signers").join(lib_name))
     }
 
-    /// Initialize the library with the private key
-    fn initialize_library(library: &Library, private_key: &str) -> Result<()> {
+    /// Initialize the client with CreateClient
+    fn create_client(&self) -> Result<()> {
         unsafe {
-            // Get the Init function
-            let init_fn: Symbol<unsafe extern "C" fn(*const c_char, c_int, c_int) -> StrOrErr> =
-                library.get(b"Init").map_err(|e| {
-                    LighterError::Signing(format!("Failed to load Init function: {}", e))
-                })?;
+            // Get the CreateClient function
+            let create_client_fn: Symbol<
+                unsafe extern "C" fn(
+                    *const c_char, // url
+                    *const c_char, // private_key
+                    c_int,         // chain_id
+                    c_int,         // api_key_index
+                    c_int,         // account_index
+                ) -> StrOrErr,
+            > = self.library.get(b"CreateClient").map_err(|e| {
+                LighterError::Signing(format!("Failed to load CreateClient function: {}", e))
+            })?;
 
-            // Remove 0x prefix if present
-            let key = private_key.trim_start_matches("0x");
-            let c_key = CString::new(key)
+            let c_url = CString::new(self.url.as_str())
+                .map_err(|e| LighterError::Signing(format!("Invalid URL string: {}", e)))?;
+
+            let c_key = CString::new(self.private_key.as_str())
                 .map_err(|e| LighterError::Signing(format!("Invalid private key string: {}", e)))?;
 
-            // Call Init with mainnet=0 for testnet, chain_id will be set later
-            let result = init_fn(c_key.as_ptr(), 0, 300); // 300 for testnet, 304 for mainnet
+            // Call CreateClient
+            let result = create_client_fn(
+                c_url.as_ptr(),
+                c_key.as_ptr(),
+                self.chain_id,
+                self.api_key_index,
+                self.account_index,
+            );
 
             // Check for errors
-            if !result.error.is_null() {
-                let error_str = CStr::from_ptr(result.error).to_string_lossy().to_string();
-                Self::free_string(library, result.error);
-                return Err(LighterError::Signing(format!("Init failed: {}", error_str)));
+            if !result.err.is_null() {
+                let error_str = CStr::from_ptr(result.err).to_string_lossy().to_string();
+                // Free the error string
+                libc::free(result.err as *mut libc::c_void);
+                if !result.str.is_null() {
+                    libc::free(result.str as *mut libc::c_void);
+                }
+                return Err(LighterError::Signing(format!(
+                    "CreateClient failed: {}",
+                    error_str
+                )));
             }
 
-            // Free the value if it exists
-            if !result.value.is_null() {
-                Self::free_string(library, result.value);
+            // Free the result string if it exists
+            if !result.str.is_null() {
+                libc::free(result.str as *mut libc::c_void);
             }
 
             Ok(())
         }
     }
 
-    /// Free a C string allocated by the library
-    fn free_string(library: &Library, ptr: *mut c_char) {
-        unsafe {
-            if let Ok(free_fn) = library.get::<unsafe extern "C" fn(*mut c_char)>(b"FreeString") {
-                free_fn(ptr);
-            }
-        }
-    }
-
     /// Parse the result from the library
-    fn parse_result(&self, result: StrOrErr) -> Result<SignedTransaction> {
+    fn parse_result(&self, result: StrOrErr) -> Result<String> {
         unsafe {
             // Check for errors
-            if !result.error.is_null() {
-                let error_str = CStr::from_ptr(result.error).to_string_lossy().to_string();
-                Self::free_string(&self.library, result.error);
-                if !result.value.is_null() {
-                    Self::free_string(&self.library, result.value);
+            if !result.err.is_null() {
+                let error_str = CStr::from_ptr(result.err).to_string_lossy().to_string();
+                libc::free(result.err as *mut libc::c_void);
+                if !result.str.is_null() {
+                    libc::free(result.str as *mut libc::c_void);
                 }
                 return Err(LighterError::Signing(format!(
                     "Signer error: {}",
@@ -144,21 +169,16 @@ impl FFISigner {
             }
 
             // Parse the value
-            if result.value.is_null() {
+            if result.str.is_null() {
                 return Err(LighterError::Signing(
                     "Signer returned null value".to_string(),
                 ));
             }
 
-            let value_str = CStr::from_ptr(result.value).to_string_lossy().to_string();
-            Self::free_string(&self.library, result.value);
+            let value_str = CStr::from_ptr(result.str).to_string_lossy().to_string();
+            libc::free(result.str as *mut libc::c_void);
 
-            // Parse as JSON
-            let tx: SignedTransaction = serde_json::from_str(&value_str).map_err(|e| {
-                LighterError::Signing(format!("Failed to parse signer result: {}", e))
-            })?;
-
-            Ok(tx)
+            Ok(value_str)
         }
     }
 
@@ -177,14 +197,12 @@ impl FFISigner {
         trigger_price: i32,
         order_expiry: i64,
         nonce: i64,
-    ) -> Result<SignedTransaction> {
+    ) -> Result<String> {
         unsafe {
             // Get the SignCreateOrder function
             #[allow(clippy::type_complexity)]
             let sign_fn: Symbol<
                 unsafe extern "C" fn(
-                    c_int,      // api_key_index
-                    c_int,      // account_index
                     c_int,      // market_index
                     c_longlong, // client_order_index
                     c_longlong, // base_amount
@@ -218,8 +236,6 @@ impl FFISigner {
 
             // Call the function
             let result = sign_fn(
-                self.api_key_index,
-                self.account_index,
                 market_index as c_int,
                 client_order_index as c_longlong,
                 base_amount as c_longlong,
@@ -233,14 +249,8 @@ impl FFISigner {
                 nonce as c_longlong,
             );
 
-            // Parse the result
-            let mut tx = self.parse_result(result)?;
-
-            // Sign the message with Ethereum signer
-            let signature = self.eth_signer.sign_message(&tx.message_to_sign)?;
-            tx.signature = Some(signature);
-
-            Ok(tx)
+            // Parse and return the result
+            self.parse_result(result)
         }
     }
 
@@ -251,13 +261,11 @@ impl FFISigner {
         client_cancel_index: i64,
         order_id_to_cancel: &str,
         nonce: i64,
-    ) -> Result<SignedTransaction> {
+    ) -> Result<String> {
         unsafe {
             // Get the SignCancelOrder function
             let sign_fn: Symbol<
                 unsafe extern "C" fn(
-                    c_int,         // api_key_index
-                    c_int,         // account_index
                     c_int,         // market_index
                     c_longlong,    // client_cancel_index
                     *const c_char, // order_id_to_cancel
@@ -272,22 +280,14 @@ impl FFISigner {
 
             // Call the function
             let result = sign_fn(
-                self.api_key_index,
-                self.account_index,
                 market_index as c_int,
                 client_cancel_index as c_longlong,
                 c_order_id.as_ptr(),
                 nonce as c_longlong,
             );
 
-            // Parse the result
-            let mut tx = self.parse_result(result)?;
-
-            // Sign the message with Ethereum signer
-            let signature = self.eth_signer.sign_message(&tx.message_to_sign)?;
-            tx.signature = Some(signature);
-
-            Ok(tx)
+            // Parse and return the result
+            self.parse_result(result)
         }
     }
 
@@ -297,13 +297,11 @@ impl FFISigner {
         market_index: i32,
         client_cancel_index: i64,
         nonce: i64,
-    ) -> Result<SignedTransaction> {
+    ) -> Result<String> {
         unsafe {
             // Get the SignCancelAllOrders function
             let sign_fn: Symbol<
                 unsafe extern "C" fn(
-                    c_int,      // api_key_index
-                    c_int,      // account_index
                     c_int,      // market_index
                     c_longlong, // client_cancel_index
                     c_longlong, // nonce
@@ -317,37 +315,23 @@ impl FFISigner {
 
             // Call the function
             let result = sign_fn(
-                self.api_key_index,
-                self.account_index,
                 market_index as c_int,
                 client_cancel_index as c_longlong,
                 nonce as c_longlong,
             );
 
-            // Parse the result
-            let mut tx = self.parse_result(result)?;
-
-            // Sign the message with Ethereum signer
-            let signature = self.eth_signer.sign_message(&tx.message_to_sign)?;
-            tx.signature = Some(signature);
-
-            Ok(tx)
+            // Parse and return the result
+            self.parse_result(result)
         }
     }
 
     /// Sign a transfer request
-    pub fn sign_transfer(
-        &self,
-        receiver: &str,
-        amount: i64,
-        nonce: i64,
-    ) -> Result<SignedTransaction> {
+    /// Note: This returns the transaction JSON. For L1 transfers, additional Ethereum signing may be needed
+    pub fn sign_transfer(&self, receiver: &str, amount: i64, nonce: i64) -> Result<String> {
         unsafe {
             // Get the SignTransfer function
             let sign_fn: Symbol<
                 unsafe extern "C" fn(
-                    c_int,         // api_key_index
-                    c_int,         // account_index
                     *const c_char, // receiver
                     c_longlong,    // amount
                     c_longlong,    // nonce
@@ -361,37 +345,22 @@ impl FFISigner {
 
             // Call the function
             let result = sign_fn(
-                self.api_key_index,
-                self.account_index,
                 c_receiver.as_ptr(),
                 amount as c_longlong,
                 nonce as c_longlong,
             );
 
-            // Parse the result
-            let mut tx = self.parse_result(result)?;
-
-            // Sign the message with Ethereum signer
-            let signature = self.eth_signer.sign_message(&tx.message_to_sign)?;
-            tx.signature = Some(signature);
-
-            Ok(tx)
+            // Parse and return the result
+            self.parse_result(result)
         }
     }
 
     /// Sign a withdraw request
-    pub fn sign_withdraw(
-        &self,
-        receiver: &str,
-        amount: i64,
-        nonce: i64,
-    ) -> Result<SignedTransaction> {
+    pub fn sign_withdraw(&self, receiver: &str, amount: i64, nonce: i64) -> Result<String> {
         unsafe {
             // Get the SignWithdraw function
             let sign_fn: Symbol<
                 unsafe extern "C" fn(
-                    c_int,         // api_key_index
-                    c_int,         // account_index
                     *const c_char, // receiver
                     c_longlong,    // amount
                     c_longlong,    // nonce
@@ -405,23 +374,57 @@ impl FFISigner {
 
             // Call the function
             let result = sign_fn(
-                self.api_key_index,
-                self.account_index,
                 c_receiver.as_ptr(),
                 amount as c_longlong,
                 nonce as c_longlong,
             );
 
-            // Parse the result
-            let mut tx = self.parse_result(result)?;
-
-            // Sign the message with Ethereum signer
-            let signature = self.eth_signer.sign_message(&tx.message_to_sign)?;
-            tx.signature = Some(signature);
-
-            Ok(tx)
+            // Parse and return the result
+            self.parse_result(result)
         }
     }
+
+    /// Switch to a different API key
+    pub fn switch_api_key(&mut self, new_api_key_index: i32) -> Result<()> {
+        unsafe {
+            // Get the SwitchAPIKey function
+            let switch_fn: Symbol<unsafe extern "C" fn(c_int) -> StrOrErr> =
+                self.library.get(b"SwitchAPIKey").map_err(|e| {
+                    LighterError::Signing(format!("Failed to load SwitchAPIKey function: {}", e))
+                })?;
+
+            // Call the function
+            let result = switch_fn(new_api_key_index as c_int);
+
+            // Check for errors
+            if !result.err.is_null() {
+                let error_str = CStr::from_ptr(result.err).to_string_lossy().to_string();
+                libc::free(result.err as *mut libc::c_void);
+                if !result.str.is_null() {
+                    libc::free(result.str as *mut libc::c_void);
+                }
+                return Err(LighterError::Signing(format!(
+                    "SwitchAPIKey failed: {}",
+                    error_str
+                )));
+            }
+
+            // Free the result string if it exists
+            if !result.str.is_null() {
+                libc::free(result.str as *mut libc::c_void);
+            }
+
+            // Update the internal api_key_index
+            self.api_key_index = new_api_key_index as c_int;
+
+            Ok(())
+        }
+    }
+}
+
+// Add libc dependency for memory management
+extern "C" {
+    // We use standard C free instead of a custom FreeString
 }
 
 #[cfg(test)]

@@ -1,9 +1,8 @@
 use chrono::Utc;
-use lighter_rust::{
-    Account, AccountTier, ApiResponse, Order, OrderStatus, OrderType,
-    Side, TimeInForce,
-};
 use lighter_rust::models::{Balance, OrderBook, Pagination, PriceLevel};
+use lighter_rust::{
+    Account, AccountTier, ApiResponse, Order, OrderStatus, OrderType, Side, TimeInForce,
+};
 
 #[test]
 fn test_account_tier_serialization() {

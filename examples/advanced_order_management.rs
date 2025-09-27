@@ -1,9 +1,8 @@
 use chrono::Utc;
-use lighter_rust::{
-    init_logging_with_filter, Config, LighterClient, OrderStatus, OrderType, Side,
-    TimeInForce,
-};
 use lighter_rust::models::OrderFilter;
+use lighter_rust::{
+    init_logging_with_filter, Config, LighterClient, OrderStatus, OrderType, Side, TimeInForce,
+};
 use std::collections::HashMap;
 use tokio::time::{sleep, Duration};
 
