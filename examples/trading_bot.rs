@@ -1,4 +1,5 @@
-use lighter_rust::{init_logging, CandlestickInterval, Config, LighterClient, OrderType, Side};
+use lighter_rust::{init_logging, Config, LighterClient, OrderType, Side};
+use lighter_rust::api::CandlestickInterval;
 use std::collections::VecDeque;
 use tokio::time::{sleep, Duration};
 

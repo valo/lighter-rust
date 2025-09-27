@@ -306,7 +306,7 @@ async fn test_pagination_integration() {
     )
     .unwrap();
 
-    let filter = lighter_rust::OrderFilter {
+    let filter = lighter_rust::models::OrderFilter {
         symbol: None,
         status: None,
         side: None,

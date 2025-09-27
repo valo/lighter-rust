@@ -40,15 +40,17 @@ pub mod nonce;
 pub mod signers;
 
 // Re-export specific items to avoid ambiguous glob re-exports
-pub use api::{account::AccountApi, candlestick::CandlestickApi, order::OrderApi, transaction::TransactionApi};
+pub use api::{
+    account::AccountApi, candlestick::CandlestickApi, order::OrderApi, transaction::TransactionApi,
+};
 pub use client::{api_client::ApiClient, signer_client::SignerClient, ws_client::WebSocketClient};
 pub use config::Config;
 pub use error::{LighterError, Result};
 pub use logging::{init_logging, init_logging_with_filter};
 // Re-export models modules individually
-pub use models::common::*;
-pub use models::order::{Order, CreateOrderRequest, TimeInForce};
 pub use models::account::Account;
+pub use models::common::*;
+pub use models::order::{CreateOrderRequest, Order, TimeInForce};
 pub use signers::{ethereum::*, ffi::*};
 
 /// Main client for interacting with the Lighter API

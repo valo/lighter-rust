@@ -48,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = Config::new().with_api_key("your-api-key").with_timeout(30);
 
     // Create client using mnemonic (account index 0)
-    let client = LighterClient::from_mnemonic(config, test_mnemonic, 0)?;
+    let _client = LighterClient::from_mnemonic(config, test_mnemonic, 0)?;
 
     println!("   Client initialized successfully!");
 

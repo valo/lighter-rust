@@ -1,4 +1,4 @@
-use lighter_rust::{init_logging, AccountTier, Config, LighterClient, OrderType, Side};
+use lighter_rust::{init_logging, Config, LighterClient, OrderType, Side};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

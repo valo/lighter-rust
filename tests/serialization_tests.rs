@@ -1,9 +1,9 @@
 use chrono::Utc;
 use lighter_rust::{
-    Account, AccountTier, ApiResponse, Balance, Order, OrderBook, OrderStatus, OrderType,
-    Pagination, Position, PriceLevel, Side, TimeInForce, Trade,
+    Account, AccountTier, ApiResponse, Order, OrderStatus, OrderType,
+    Side, TimeInForce,
 };
-use serde_json;
+use lighter_rust::models::{Balance, OrderBook, Pagination, PriceLevel};
 
 #[test]
 fn test_account_tier_serialization() {
