@@ -16,6 +16,7 @@ impl OrderApi {
         Self { client }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_order(
         &self,
         symbol: &str,

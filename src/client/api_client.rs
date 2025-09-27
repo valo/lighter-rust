@@ -165,7 +165,7 @@ impl ApiClient {
                     let error_message = serde_json::from_str::<serde_json::Value>(&body)
                         .ok()
                         .and_then(|v| v.get("message").and_then(|m| m.as_str().map(String::from)))
-                        .unwrap_or_else(|| body);
+                        .unwrap_or(body);
 
                     Err(LighterError::Api {
                         status: status.as_u16(),
