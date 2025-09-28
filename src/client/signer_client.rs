@@ -42,6 +42,22 @@ impl SignerClient {
     pub fn get_address(&self) -> Result<String> {
         self.signer.get_address()
     }
+
+    pub async fn post_signed<T: serde::Serialize, R: serde::de::DeserializeOwned>(
+        &self,
+        path: &str,
+        body: Option<&T>,
+    ) -> Result<R> {
+        // For now, just pass through to the API client
+        // In the future, this could add signing headers if needed
+        self.api_client.post(path, body).await
+    }
+
+    pub async fn delete_signed<R: serde::de::DeserializeOwned>(&self, path: &str) -> Result<R> {
+        // For now, just pass through to the API client
+        // In the future, this could add signing headers if needed
+        self.api_client.delete(path).await
+    }
 }
 
 impl Clone for SignerClient {

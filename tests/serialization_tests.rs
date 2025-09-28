@@ -72,7 +72,7 @@ fn test_api_response_serialization() {
     let json = serde_json::to_string(&response).unwrap();
     let deserialized: ApiResponse<String> = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(deserialized.success, true);
+    assert!(deserialized.success);
     assert_eq!(deserialized.data, Some("test data".to_string()));
     assert_eq!(deserialized.error, None);
 }
@@ -143,7 +143,7 @@ fn test_pagination_serialization() {
     assert_eq!(deserialized.page, 1);
     assert_eq!(deserialized.limit, 50);
     assert_eq!(deserialized.total, 100);
-    assert_eq!(deserialized.has_next, true);
+    assert!(deserialized.has_next);
 }
 
 #[test]

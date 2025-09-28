@@ -1,22 +1,30 @@
-use crate::client::ApiClient;
+use crate::client::{ApiClient, SignerClient};
 use crate::error::Result;
-use crate::models::{ApiResponse, Order, OrderFilter, Trade, Pagination};
+use crate::models::{
+    common::{OrderType, Side},
+    order::{CreateOrderRequest, TimeInForce},
+    ApiResponse, Order, OrderFilter, Pagination, Trade,
+};
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct OrderApi {
     client: ApiClient,
+    signer_client: Arc<SignerClient>,
 }
 
 impl OrderApi {
-    pub fn new(client: ApiClient) -> Self {
-        Self { client }
+    pub fn new(signer_client: SignerClient) -> Self {
+        let client = signer_client.api_client().clone();
+        Self {
+            client,
+            signer_client: Arc::new(signer_client),
+        }
     }
 
     pub async fn get_order(&self, order_id: &str) -> Result<Order> {
-        let response: ApiResponse<Order> = self
-            .client
-            .get(&format!("/orders/{}", order_id))
-            .await?;
+        let response: ApiResponse<Order> =
+            self.client.get(&format!("/orders/{}", order_id)).await?;
 
         match response.data {
             Some(order) => Ok(order),
@@ -99,5 +107,90 @@ impl OrderApi {
                 message: response.error.unwrap_or("Failed".to_string()),
             }),
         }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn create_order(
+        &self,
+        symbol: &str,
+        side: Side,
+        order_type: OrderType,
+        quantity: &str,
+        price: Option<&str>,
+        client_order_id: Option<&str>,
+        time_in_force: Option<TimeInForce>,
+        post_only: Option<bool>,
+        reduce_only: Option<bool>,
+    ) -> Result<Order> {
+        // Get nonce and signature
+        let nonce = self.signer_client.generate_nonce()?;
+        let message = format!(
+            "{}:{}:{:?}:{}:{}",
+            symbol, side as i32, order_type, quantity, nonce
+        );
+        let signature = self.signer_client.signer().sign_message(&message)?;
+
+        let request = CreateOrderRequest {
+            symbol: symbol.to_string(),
+            side,
+            order_type,
+            quantity: quantity.to_string(),
+            price: price.map(String::from),
+            stop_price: None, // Add stop_price support later if needed
+            time_in_force: time_in_force.unwrap_or(TimeInForce::Gtc),
+            client_order_id: client_order_id.map(String::from),
+            nonce,
+            signature,
+            post_only,
+            reduce_only,
+        };
+
+        let response: ApiResponse<Order> = self
+            .signer_client
+            .post_signed("/orders", Some(&request))
+            .await?;
+
+        match response.data {
+            Some(order) => Ok(order),
+            None => Err(crate::error::LighterError::Api {
+                status: 500,
+                message: response
+                    .error
+                    .unwrap_or("Failed to create order".to_string()),
+            }),
+        }
+    }
+
+    pub async fn cancel_order(
+        &self,
+        order_id: Option<&str>,
+        client_order_id: Option<&str>,
+        symbol: Option<&str>,
+    ) -> Result<()> {
+        let endpoint = match (order_id, client_order_id, symbol) {
+            (Some(id), _, _) => format!("/orders/{}", id),
+            (None, Some(cid), Some(sym)) => {
+                format!("/orders?client_order_id={}&symbol={}", cid, sym)
+            }
+            _ => {
+                return Err(crate::error::LighterError::Api {
+                    status: 400,
+                    message: "Must provide either order_id or both client_order_id and symbol"
+                        .to_string(),
+                })
+            }
+        };
+
+        let response: ApiResponse<serde_json::Value> =
+            self.signer_client.delete_signed(&endpoint).await?;
+
+        if response.error.is_some() {
+            return Err(crate::error::LighterError::Api {
+                status: 500,
+                message: response.error.unwrap(),
+            });
+        }
+
+        Ok(())
     }
 }

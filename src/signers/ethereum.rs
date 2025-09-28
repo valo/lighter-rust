@@ -18,8 +18,7 @@ pub struct EthereumSigner {
 impl EthereumSigner {
     pub fn from_private_key(private_key: &str) -> Result<Self> {
         let private_key = private_key.trim_start_matches("0x");
-        let decoded = hex::decode(private_key)
-            .map_err(|e| LighterError::Signing(e.to_string()))?;
+        let decoded = hex::decode(private_key).map_err(|e| LighterError::Signing(e.to_string()))?;
         let signer = PrivateKeySigner::from_slice(&decoded)
             .map_err(|e| LighterError::Signing(e.to_string()))?;
 
@@ -50,8 +49,8 @@ impl EthereumSigner {
         let mut entropy = [0u8; 16];
         rng.fill_bytes(&mut entropy);
 
-        let mnemonic = Mnemonic::from_entropy(&entropy)
-            .map_err(|e| LighterError::Signing(e.to_string()))?;
+        let mnemonic =
+            Mnemonic::from_entropy(&entropy).map_err(|e| LighterError::Signing(e.to_string()))?;
 
         Self::from_mnemonic(&mnemonic.to_string(), 0)
     }
@@ -68,7 +67,9 @@ impl EthereumSigner {
 impl Signer for EthereumSigner {
     fn sign_message(&self, message: &str) -> Result<String> {
         let hash = self.hash_message(message);
-        let signature = self.signer.sign_hash_sync(&hash)
+        let signature = self
+            .signer
+            .sign_hash_sync(&hash)
             .map_err(|e| LighterError::Signing(e.to_string()))?;
         Ok(format!("0x{}", hex::encode(signature.as_bytes())))
     }

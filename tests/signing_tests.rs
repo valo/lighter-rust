@@ -1,5 +1,4 @@
 use lighter_rust::signers::{EthereumSigner, Signer};
-use lighter_rust::{sign_cancel_payload, sign_order_payload};
 
 #[test]
 fn test_ethereum_signer_creation() {
@@ -56,47 +55,7 @@ fn test_deterministic_signing() {
     assert_ne!(sig1, sig3);
 }
 
-#[test]
-fn test_sign_order_payload() {
-    let private_key = "0000000000000000000000000000000000000000000000000000000000000001";
-    let signer = EthereumSigner::from_private_key(private_key).unwrap();
-
-    let signature =
-        sign_order_payload(&signer, "BTC-USDC", "BUY", "0.1", Some("45000"), 12345678).unwrap();
-
-    assert!(signature.starts_with("0x"));
-    assert!(signature.len() >= 130);
-
-    // Test without price (market order)
-    let market_sig =
-        sign_order_payload(&signer, "BTC-USDC", "SELL", "0.5", None, 12345679).unwrap();
-
-    assert!(market_sig.starts_with("0x"));
-    assert_ne!(signature, market_sig); // Different payloads
-}
-
-#[test]
-fn test_sign_cancel_payload() {
-    let private_key = "0000000000000000000000000000000000000000000000000000000000000001";
-    let signer = EthereumSigner::from_private_key(private_key).unwrap();
-
-    // Test with order_id
-    let sig1 = sign_cancel_payload(&signer, Some("order123"), None, None, 12345680).unwrap();
-
-    assert!(sig1.starts_with("0x"));
-
-    // Test with client_order_id
-    let sig2 = sign_cancel_payload(&signer, None, Some("client456"), None, 12345681).unwrap();
-
-    assert!(sig2.starts_with("0x"));
-    assert_ne!(sig1, sig2);
-
-    // Test with symbol (cancel all for symbol)
-    let sig3 = sign_cancel_payload(&signer, None, None, Some("BTC-USDC"), 12345682).unwrap();
-
-    assert!(sig3.starts_with("0x"));
-    assert_ne!(sig2, sig3);
-}
+// Note: Order signing tests removed as they now use FFISigner
 
 #[test]
 fn test_nonce_in_signatures() {

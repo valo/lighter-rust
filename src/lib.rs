@@ -41,7 +41,10 @@ pub mod signers;
 
 // Re-export specific items to avoid ambiguous glob re-exports
 pub use api::{
-    account::AccountApi, candlestick::CandlestickApi, order::OrderApi, transaction::TransactionApi,
+    account::AccountApi,
+    candlestick::{CandlestickApi, CandlestickInterval},
+    order::OrderApi,
+    transaction::TransactionApi,
 };
 pub use client::{api_client::ApiClient, signer_client::SignerClient, ws_client::WebSocketClient};
 pub use config::Config;
@@ -72,7 +75,7 @@ impl LighterClient {
 
         Ok(Self {
             account_api: AccountApi::new(signer_client.clone()),
-            order_api: OrderApi::new(api_client.clone()),
+            order_api: OrderApi::new(signer_client.clone()),
             transaction_api: TransactionApi::new(signer_client.clone()),
             candlestick_api: CandlestickApi::new(signer_client),
             ws_client,
@@ -83,12 +86,13 @@ impl LighterClient {
     pub fn from_mnemonic(config: Config, mnemonic: &str, account_index: u32) -> Result<Self> {
         let api_client = ApiClient::new(config.clone())?;
         let ethereum_signer = signers::EthereumSigner::from_mnemonic(mnemonic, account_index)?;
-        let signer_client = SignerClient::new(api_client.clone(), std::sync::Arc::new(ethereum_signer));
+        let signer_client =
+            SignerClient::new(api_client.clone(), std::sync::Arc::new(ethereum_signer));
         let ws_client = WebSocketClient::new(config);
 
         Ok(Self {
             account_api: AccountApi::new(signer_client.clone()),
-            order_api: OrderApi::new(api_client.clone()),
+            order_api: OrderApi::new(signer_client.clone()),
             transaction_api: TransactionApi::new(signer_client.clone()),
             candlestick_api: CandlestickApi::new(signer_client),
             ws_client,
@@ -104,11 +108,12 @@ impl LighterClient {
         let dummy_signer = signers::EthereumSigner::from_private_key(
             "0000000000000000000000000000000000000000000000000000000000000001",
         )?;
-        let signer_client = SignerClient::new(api_client.clone(), std::sync::Arc::new(dummy_signer));
+        let signer_client =
+            SignerClient::new(api_client.clone(), std::sync::Arc::new(dummy_signer));
 
         Ok(Self {
             account_api: AccountApi::new(signer_client.clone()),
-            order_api: OrderApi::new(api_client.clone()),
+            order_api: OrderApi::new(signer_client.clone()),
             transaction_api: TransactionApi::new(signer_client.clone()),
             candlestick_api: CandlestickApi::new(signer_client),
             ws_client,

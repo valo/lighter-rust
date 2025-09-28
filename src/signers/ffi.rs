@@ -45,11 +45,8 @@ impl FFISigner {
         let chain_id = if url.contains("mainnet") { 304 } else { 300 };
         let lib_path = Self::get_library_path()?;
 
-        let library = unsafe {
-            Library::new(&lib_path).map_err(|e| {
-                LighterError::Signing(e.to_string())
-            })?
-        };
+        let library =
+            unsafe { Library::new(&lib_path).map_err(|e| LighterError::Signing(e.to_string()))? };
 
         let clean_key = private_key.trim_start_matches("0x");
 
@@ -84,7 +81,9 @@ impl FFISigner {
         unsafe {
             let create_client_fn: Symbol<
                 unsafe extern "C" fn(*const c_char, *const c_char, c_int, c_int, c_int) -> StrOrErr,
-            > = self.library.get(b"CreateClient")
+            > = self
+                .library
+                .get(b"CreateClient")
                 .map_err(|e| LighterError::Signing(e.to_string()))?;
 
             let c_url = CString::new(self.url.as_str())
@@ -158,9 +157,21 @@ impl FFISigner {
             #[allow(clippy::type_complexity)]
             let sign_fn: Symbol<
                 unsafe extern "C" fn(
-                    c_int, c_longlong, c_longlong, c_int, c_int, c_int, c_int, c_int, c_int, c_longlong, c_longlong
+                    c_int,
+                    c_longlong,
+                    c_longlong,
+                    c_int,
+                    c_int,
+                    c_int,
+                    c_int,
+                    c_int,
+                    c_int,
+                    c_longlong,
+                    c_longlong,
                 ) -> StrOrErr,
-            > = self.library.get(b"SignCreateOrder")
+            > = self
+                .library
+                .get(b"SignCreateOrder")
                 .map_err(|e| LighterError::Signing(e.to_string()))?;
 
             let order_type_int = match order_type {
@@ -205,7 +216,9 @@ impl FFISigner {
         unsafe {
             let sign_fn: Symbol<
                 unsafe extern "C" fn(c_int, c_longlong, *const c_char, c_longlong) -> StrOrErr,
-            > = self.library.get(b"SignCancelOrder")
+            > = self
+                .library
+                .get(b"SignCancelOrder")
                 .map_err(|e| LighterError::Signing(e.to_string()))?;
 
             let c_order_id = CString::new(order_id_to_cancel)
@@ -229,10 +242,10 @@ impl FFISigner {
         nonce: i64,
     ) -> Result<String> {
         unsafe {
-            let sign_fn: Symbol<
-                unsafe extern "C" fn(c_int, c_longlong, c_longlong) -> StrOrErr,
-            > = self.library.get(b"SignCancelAllOrders")
-                .map_err(|e| LighterError::Signing(e.to_string()))?;
+            let sign_fn: Symbol<unsafe extern "C" fn(c_int, c_longlong, c_longlong) -> StrOrErr> =
+                self.library
+                    .get(b"SignCancelAllOrders")
+                    .map_err(|e| LighterError::Signing(e.to_string()))?;
 
             let result = sign_fn(
                 market_index as c_int,
@@ -248,7 +261,9 @@ impl FFISigner {
         unsafe {
             let sign_fn: Symbol<
                 unsafe extern "C" fn(*const c_char, c_longlong, c_longlong) -> StrOrErr,
-            > = self.library.get(b"SignTransfer")
+            > = self
+                .library
+                .get(b"SignTransfer")
                 .map_err(|e| LighterError::Signing(e.to_string()))?;
 
             let c_receiver = CString::new(receiver)
@@ -268,7 +283,9 @@ impl FFISigner {
         unsafe {
             let sign_fn: Symbol<
                 unsafe extern "C" fn(*const c_char, c_longlong, c_longlong) -> StrOrErr,
-            > = self.library.get(b"SignWithdraw")
+            > = self
+                .library
+                .get(b"SignWithdraw")
                 .map_err(|e| LighterError::Signing(e.to_string()))?;
 
             let c_receiver = CString::new(receiver)
@@ -286,9 +303,10 @@ impl FFISigner {
 
     pub fn switch_api_key(&mut self, new_api_key_index: i32) -> Result<()> {
         unsafe {
-            let switch_fn: Symbol<unsafe extern "C" fn(c_int) -> StrOrErr> =
-                self.library.get(b"SwitchAPIKey")
-                    .map_err(|e| LighterError::Signing(e.to_string()))?;
+            let switch_fn: Symbol<unsafe extern "C" fn(c_int) -> StrOrErr> = self
+                .library
+                .get(b"SwitchAPIKey")
+                .map_err(|e| LighterError::Signing(e.to_string()))?;
 
             let result = switch_fn(new_api_key_index as c_int);
 

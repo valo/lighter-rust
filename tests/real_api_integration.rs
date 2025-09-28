@@ -3,7 +3,7 @@
 //! These tests interact with the actual Lighter testnet API.
 //! Run with: LIGHTER_TEST_PRIVATE_KEY=0x... cargo test --test real_api_integration --ignored
 
-use lighter_rust::{Config, LighterClient, OrderType, Side, TimeInForce, AccountTier};
+use lighter_rust::{CandlestickInterval, Config, LighterClient, OrderType, Side, TimeInForce};
 use std::env;
 
 /// Test configuration from environment variables
@@ -16,8 +16,9 @@ struct TestConfig {
 impl TestConfig {
     fn from_env() -> Self {
         Self {
-            private_key: env::var("LIGHTER_TEST_PRIVATE_KEY")
-                .unwrap_or_else(|_| "0x0000000000000000000000000000000000000000000000000000000000000001".to_string()),
+            private_key: env::var("LIGHTER_TEST_PRIVATE_KEY").unwrap_or_else(|_| {
+                "0x0000000000000000000000000000000000000000000000000000000000000001".to_string()
+            }),
             api_key: env::var("LIGHTER_TEST_API_KEY").ok(),
             base_url: env::var("LIGHTER_TEST_BASE_URL")
                 .unwrap_or_else(|_| "https://api.testnet.lighter.xyz".to_string()),
@@ -89,8 +90,10 @@ async fn test_get_balances() -> Result<(), Box<dyn std::error::Error>> {
     let balances = client.account().get_balances().await?;
 
     for balance in &balances {
-        println!("Asset: {}, Available: {}, Locked: {}",
-            balance.asset, balance.available, balance.locked);
+        println!(
+            "Asset: {}, Available: {}, Locked: {}",
+            balance.asset, balance.available, balance.locked
+        );
     }
 
     Ok(())
@@ -119,23 +122,29 @@ async fn test_create_and_cancel_order() -> Result<(), Box<dyn std::error::Error>
     let client = test_config.create_client().await?;
 
     // Create a limit buy order with low price
-    let order = client.orders().create_order(
-        "BTC-USDC",
-        Side::Buy,
-        OrderType::Limit,
-        "0.001",
-        Some("10000"),  // Low price to avoid execution
-        None,
-        Some(TimeInForce::Gtc),
-        None,
-        None,
-    ).await?;
+    let order = client
+        .orders()
+        .create_order(
+            "BTC-USDC",
+            Side::Buy,
+            OrderType::Limit,
+            "0.001",
+            Some("10000"), // Low price to avoid execution
+            None,
+            Some(TimeInForce::Gtc),
+            None,
+            None,
+        )
+        .await?;
 
     println!("Created order: {}", order.id);
     assert_eq!(order.symbol, "BTC-USDC");
 
     // Cancel the order
-    client.orders().cancel_order(Some(&order.id), None, None).await?;
+    client
+        .orders()
+        .cancel_order(Some(&order.id), None, None)
+        .await?;
     println!("Cancelled order: {}", order.id);
 
     Ok(())
@@ -148,24 +157,30 @@ async fn test_get_order() -> Result<(), Box<dyn std::error::Error>> {
     let client = test_config.create_client().await?;
 
     // Create an order first
-    let created = client.orders().create_order(
-        "BTC-USDC",
-        Side::Buy,
-        OrderType::Limit,
-        "0.001",
-        Some("10000"),
-        None,
-        Some(TimeInForce::Gtc),
-        None,
-        None,
-    ).await?;
+    let created = client
+        .orders()
+        .create_order(
+            "BTC-USDC",
+            Side::Buy,
+            OrderType::Limit,
+            "0.001",
+            Some("10000"),
+            None,
+            Some(TimeInForce::Gtc),
+            None,
+            None,
+        )
+        .await?;
 
     // Retrieve it
     let retrieved = client.orders().get_order(&created.id).await?;
     assert_eq!(retrieved.id, created.id);
 
     // Clean up
-    let _ = client.orders().cancel_order(Some(&created.id), None, None).await;
+    let _ = client
+        .orders()
+        .cancel_order(Some(&created.id), None, None)
+        .await;
 
     Ok(())
 }
@@ -207,8 +222,10 @@ async fn test_get_trades() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Retrieved {} trades", trades.len());
     for trade in trades.iter().take(5) {
-        println!("Trade: {} - Price: {}, Quantity: {}",
-            trade.id, trade.price, trade.quantity);
+        println!(
+            "Trade: {} - Price: {}, Quantity: {}",
+            trade.id, trade.price, trade.quantity
+        );
     }
 
     Ok(())
@@ -227,18 +244,23 @@ async fn test_get_candlesticks() -> Result<(), Box<dyn std::error::Error>> {
     let end = chrono::Utc::now();
     let start = end - chrono::Duration::hours(1);
 
-    let candles = client.market_data().get_candlesticks(
-        "BTC-USDC",
-        "1m",
-        start,
-        end,
-        Some(10),
-    ).await?;
+    let candles = client
+        .market_data()
+        .get_candlesticks(
+            "BTC-USDC",
+            CandlestickInterval::OneMinute,
+            Some(start),
+            Some(end),
+            Some(10),
+        )
+        .await?;
 
     println!("Retrieved {} candlesticks", candles.len());
     for candle in candles.iter().take(3) {
-        println!("Candle - Open: {}, High: {}, Low: {}, Close: {}",
-            candle.open, candle.high, candle.low, candle.close);
+        println!(
+            "Candle - Open: {}, High: {}, Low: {}, Close: {}",
+            candle.open, candle.high, candle.low, candle.close
+        );
     }
 
     Ok(())
@@ -278,10 +300,16 @@ async fn test_get_order_book() -> Result<(), Box<dyn std::error::Error>> {
     let test_config = TestConfig::from_env();
     let client = test_config.create_client().await?;
 
-    let order_book = client.market_data().get_order_book("BTC-USDC", Some(5)).await?;
+    let order_book = client
+        .market_data()
+        .get_order_book("BTC-USDC", Some(5))
+        .await?;
 
-    println!("Order book - {} bids, {} asks",
-        order_book.bids.len(), order_book.asks.len());
+    println!(
+        "Order book - {} bids, {} asks",
+        order_book.bids.len(),
+        order_book.asks.len()
+    );
 
     if let Some(best_bid) = order_book.bids.first() {
         println!("Best bid: {} @ {}", best_bid.quantity, best_bid.price);
@@ -317,15 +345,18 @@ async fn test_get_transactions() -> Result<(), Box<dyn std::error::Error>> {
     let test_config = TestConfig::from_env();
     let client = test_config.create_client().await?;
 
-    let transactions = client.transactions().get_transactions(
-        "all",  // Filter type
-        Some(10),
-        Some(0),
-    ).await?;
+    let transactions = client
+        .transactions()
+        .get_transactions(
+            "all", // Filter type
+            Some(10),
+            Some(0),
+        )
+        .await?;
 
     println!("Retrieved {} transactions", transactions.len());
     for tx in transactions.iter().take(3) {
-        println!("Transaction: {} - Type: {:?}", tx.hash, tx.tx_type);
+        println!("Transaction: {} - Status: {:?}", tx.hash, tx.status);
     }
 
     Ok(())
@@ -346,10 +377,10 @@ async fn test_websocket_connection() -> Result<(), Box<dyn std::error::Error>> {
     println!("WebSocket connected");
 
     // Subscribe to ticker
-    let sub_id = client.websocket().subscribe(
-        "ticker",
-        Some(serde_json::json!({"symbol": "BTC-USDC"})),
-    ).await?;
+    let sub_id = client
+        .websocket()
+        .subscribe("ticker", Some(serde_json::json!({"symbol": "BTC-USDC"})))
+        .await?;
     println!("Subscribed with ID: {}", sub_id);
 
     // Receive a few messages
@@ -401,11 +432,10 @@ async fn test_invalid_order_id() -> Result<(), Box<dyn std::error::Error>> {
     let test_config = TestConfig::from_env();
     let client = test_config.create_client().await?;
 
-    let result = client.orders().cancel_order(
-        Some("invalid_order_id_12345"),
-        None,
-        None,
-    ).await;
+    let result = client
+        .orders()
+        .cancel_order(Some("invalid_order_id_12345"), None, None)
+        .await;
 
     assert!(result.is_err());
     println!("Expected error: {:?}", result.unwrap_err());

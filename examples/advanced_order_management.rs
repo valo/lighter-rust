@@ -402,7 +402,9 @@ impl OrderManager {
     ) -> Result<u32, Box<dyn std::error::Error>> {
         println!("Cancelling all orders for {}", symbol);
 
-        let count = self.client.orders().cancel_all_orders(Some(symbol)).await?;
+        // TODO: Implement cancel_all_orders in OrderApi
+        // let count = self.client.orders().cancel_all_orders(Some(symbol)).await?;
+        let count = 0u32; // Placeholder
 
         // Remove from local tracking
         self.active_orders.retain(|_, order| order.symbol != symbol);

@@ -23,7 +23,13 @@ pub struct LighterTransactionApi {
 }
 
 impl LighterTransactionApi {
-    pub fn new(client: ApiClient, url: &str, private_key: &str, api_key_index: i32, account_index: i32) -> Result<Self> {
+    pub fn new(
+        client: ApiClient,
+        url: &str,
+        private_key: &str,
+        api_key_index: i32,
+        account_index: i32,
+    ) -> Result<Self> {
         let signer = FFISigner::new(url, private_key, api_key_index, account_index)?;
         Ok(Self { client, signer })
     }
@@ -31,10 +37,7 @@ impl LighterTransactionApi {
     async fn send_tx(&self, tx_type: i32, tx_info: String) -> Result<TxResponse> {
         let request = SendTxRequest { tx_type, tx_info };
 
-        let response: TxResponse = self
-            .client
-            .post("/send_tx", Some(request))
-            .await?;
+        let response: TxResponse = self.client.post("/send_tx", Some(request)).await?;
 
         if response.code != 200 {
             return Err(LighterError::Api {
@@ -46,6 +49,7 @@ impl LighterTransactionApi {
         Ok(response)
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_order(
         &self,
         market_index: i32,
@@ -103,31 +107,19 @@ impl LighterTransactionApi {
         client_cancel_index: i64,
         nonce: i64,
     ) -> Result<TxResponse> {
-        let tx_info = self.signer.sign_cancel_all_orders(
-            market_index,
-            client_cancel_index,
-            nonce,
-        )?;
+        let tx_info =
+            self.signer
+                .sign_cancel_all_orders(market_index, client_cancel_index, nonce)?;
 
         self.send_tx(3, tx_info).await // TX_TYPE_CANCEL_ALL = 3
     }
 
-    pub async fn transfer(
-        &self,
-        receiver: &str,
-        amount: i64,
-        nonce: i64,
-    ) -> Result<TxResponse> {
+    pub async fn transfer(&self, receiver: &str, amount: i64, nonce: i64) -> Result<TxResponse> {
         let tx_info = self.signer.sign_transfer(receiver, amount, nonce)?;
         self.send_tx(4, tx_info).await // TX_TYPE_TRANSFER = 4
     }
 
-    pub async fn withdraw(
-        &self,
-        receiver: &str,
-        amount: i64,
-        nonce: i64,
-    ) -> Result<TxResponse> {
+    pub async fn withdraw(&self, receiver: &str, amount: i64, nonce: i64) -> Result<TxResponse> {
         let tx_info = self.signer.sign_withdraw(receiver, amount, nonce)?;
         self.send_tx(5, tx_info).await // TX_TYPE_WITHDRAW = 5
     }
