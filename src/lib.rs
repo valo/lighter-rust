@@ -54,7 +54,10 @@ pub use logging::{init_logging, init_logging_with_filter};
 pub use models::account::Account;
 pub use models::common::*;
 pub use models::order::{CreateOrderRequest, Order, TimeInForce};
-pub use signers::{ethereum::*, ffi::*};
+pub use signers::{
+    account_tier_signature_message, ethereum::*, ffi::*, order_signature_message,
+    sign_account_tier_payload, sign_order_payload,
+};
 
 /// Main client for interacting with the Lighter API
 #[derive(Debug)]

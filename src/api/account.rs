@@ -1,7 +1,7 @@
 use crate::client::SignerClient;
 use crate::error::Result;
 use crate::models::{Account, AccountStats, AccountTier, AccountTierSwitchRequest, ApiResponse};
-use serde_json::json;
+use crate::signers::sign_account_tier_payload;
 use tracing::{debug, info, instrument, warn};
 
 #[derive(Debug)]
@@ -60,15 +60,8 @@ impl AccountApi {
     pub async fn change_account_tier(&self, target_tier: AccountTier) -> Result<()> {
         let nonce = self.client.generate_nonce()?;
 
-        let payload = json!({
-            "target_tier": target_tier,
-            "nonce": nonce
-        });
-
-        let signature = self
-            .client
-            .signer()
-            .sign_message(&serde_json::to_string(&payload).unwrap())?;
+        let signature =
+            sign_account_tier_payload(self.client.signer().as_ref(), target_tier, nonce)?;
 
         let request = AccountTierSwitchRequest {
             target_tier,

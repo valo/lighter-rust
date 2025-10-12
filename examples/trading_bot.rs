@@ -160,6 +160,7 @@ async fn execute_buy_order(
             Some(&buy_price.to_string()),
             None,
             None,
+            None,
             Some(true), // post_only
             None,
         )
@@ -185,6 +186,7 @@ async fn execute_sell_order(
             OrderType::Limit,
             quantity,
             Some(&sell_price.to_string()),
+            None,
             None,
             None,
             Some(true), // post_only

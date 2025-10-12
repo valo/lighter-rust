@@ -5,6 +5,7 @@ use crate::models::{
     order::{CreateOrderRequest, TimeInForce},
     ApiResponse, Order, OrderFilter, Pagination, Trade,
 };
+use crate::signers::sign_order_payload;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -117,6 +118,7 @@ impl OrderApi {
         order_type: OrderType,
         quantity: &str,
         price: Option<&str>,
+        stop_price: Option<&str>,
         client_order_id: Option<&str>,
         time_in_force: Option<TimeInForce>,
         post_only: Option<bool>,
@@ -124,21 +126,36 @@ impl OrderApi {
     ) -> Result<Order> {
         // Get nonce and signature
         let nonce = self.signer_client.generate_nonce()?;
-        let message = format!(
-            "{}:{}:{:?}:{}:{}",
-            symbol, side as i32, order_type, quantity, nonce
-        );
-        let signature = self.signer_client.signer().sign_message(&message)?;
+
+        let price_owned = price.map(str::to_string);
+        let stop_price_owned = stop_price.map(str::to_string);
+        let client_order_id_owned = client_order_id.map(str::to_string);
+        let time_in_force_value = time_in_force.unwrap_or(TimeInForce::Gtc);
+
+        let signature = sign_order_payload(
+            self.signer_client.signer().as_ref(),
+            symbol,
+            side,
+            order_type,
+            quantity,
+            price_owned.as_deref(),
+            stop_price_owned.as_deref(),
+            client_order_id_owned.as_deref(),
+            time_in_force_value,
+            post_only,
+            reduce_only,
+            nonce,
+        )?;
 
         let request = CreateOrderRequest {
             symbol: symbol.to_string(),
             side,
             order_type,
             quantity: quantity.to_string(),
-            price: price.map(String::from),
-            stop_price: None, // Add stop_price support later if needed
-            time_in_force: time_in_force.unwrap_or(TimeInForce::Gtc),
-            client_order_id: client_order_id.map(String::from),
+            price: price_owned,
+            stop_price: stop_price_owned,
+            time_in_force: time_in_force_value,
+            client_order_id: client_order_id_owned,
             nonce,
             signature,
             post_only,

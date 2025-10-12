@@ -131,6 +131,7 @@ async fn test_create_and_cancel_order() -> Result<(), Box<dyn std::error::Error>
             "0.001",
             Some("10000"), // Low price to avoid execution
             None,
+            None,
             Some(TimeInForce::Gtc),
             None,
             None,
@@ -165,6 +166,7 @@ async fn test_get_order() -> Result<(), Box<dyn std::error::Error>> {
             OrderType::Limit,
             "0.001",
             Some("10000"),
+            None,
             None,
             Some(TimeInForce::Gtc),
             None,
