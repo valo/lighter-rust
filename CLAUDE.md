@@ -63,7 +63,7 @@ src/
 ## Dependencies
 
 ### Core Dependencies
-- `alloy` (v0.5) - Ethereum signing and primitives
+- `alloy` (v1.0) - Ethereum signing and primitives
 - `tokio` (v1.0) - Async runtime
 - `reqwest` (v0.11) - HTTP client
 - `tungstenite`/`tokio-tungstenite` (v0.20) - WebSocket support
