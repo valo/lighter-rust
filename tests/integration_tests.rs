@@ -106,6 +106,7 @@ async fn test_create_order_integration() {
             Some("45000.00"),
             None,
             None,
+            None,
             Some(false),
             Some(false),
         )
@@ -198,6 +199,7 @@ async fn test_error_handling_integration() {
             Side::Buy,
             OrderType::Market,
             "100.0",
+            None,
             None,
             None,
             None,

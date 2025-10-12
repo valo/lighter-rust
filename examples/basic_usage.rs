@@ -102,6 +102,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             OrderType::Limit,
             "0.001",       // quantity
             Some("45000"), // price
+            None,          // stop_price
             None,          // client_order_id
             None,          // time_in_force (defaults to GTC)
             Some(true),    // post_only

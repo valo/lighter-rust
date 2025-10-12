@@ -86,6 +86,7 @@ client.orders().create_order(
     order_type,      // OrderType::Limit, Market, etc.
     quantity,        // Amount as string
     price,           // Optional price for limit orders
+    stop_price,      // Optional trigger price for stop/trigger orders
     client_order_id, // Optional client-provided ID
     time_in_force,   // Optional (defaults to GTC)
     post_only,       // Optional bool

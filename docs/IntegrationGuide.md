@@ -148,6 +148,7 @@ client.orders().create_order(
     OrderType::Market,
     "0.1",
     None,  // No price for market orders
+    None,  // No stop price for market orders
     None,
     None,
     None,
@@ -161,6 +162,7 @@ client.orders().create_order(
     OrderType::Limit,
     "1.0",
     Some("3000.50"),
+    None,
     None,
     Some(TimeInForce::Gtc),
     Some(true),  // post_only
@@ -204,6 +206,7 @@ let order = client.orders().create_order(
     OrderType::Limit,
     "0.01",
     Some("45000"),
+    None,
     None,
     Some(TimeInForce::Gtc),
     None,
@@ -432,6 +435,7 @@ let order = client.orders().create_order(
     OrderType::Limit,
     "0.1",
     Some("45000"),
+    None,
     Some(&client_order_id),
     Some(TimeInForce::Gtc),
     None,
@@ -489,6 +493,7 @@ let order = client.orders().create_order(
     OrderType::Limit,
     "0.1",
     Some("45000"),
+    None,
     None,
     None,
     None,

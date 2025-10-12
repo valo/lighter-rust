@@ -1,4 +1,10 @@
-use lighter_rust::signers::{EthereumSigner, Signer};
+use lighter_rust::models::common::{OrderType, Side};
+use lighter_rust::models::order::TimeInForce;
+use lighter_rust::models::AccountTier;
+use lighter_rust::signers::{
+    account_tier_signature_message, order_signature_message, sign_account_tier_payload,
+    sign_order_payload, EthereumSigner, Signer,
+};
 
 #[test]
 fn test_ethereum_signer_creation() {
@@ -63,16 +69,35 @@ fn test_nonce_in_signatures() {
     let signer = EthereumSigner::from_private_key(private_key).unwrap();
 
     // Same payload with different nonce should produce different signatures
-    let sig1 =
-        sign_order_payload(&signer, "BTC-USDC", "BUY", "1.0", Some("50000"), 100000).unwrap();
+    let sig1 = sign_order_payload(
+        &signer,
+        "BTC-USDC",
+        Side::Buy,
+        OrderType::Limit,
+        "1.0",
+        Some("50000"),
+        None,
+        None,
+        TimeInForce::Gtc,
+        None,
+        None,
+        100000,
+    )
+    .unwrap();
 
     let sig2 = sign_order_payload(
         &signer,
         "BTC-USDC",
-        "BUY",
+        Side::Buy,
+        OrderType::Limit,
         "1.0",
         Some("50000"),
-        100001, // Different nonce
+        None,
+        None,
+        TimeInForce::Gtc,
+        None,
+        None,
+        100001,
     )
     .unwrap();
 
@@ -85,17 +110,107 @@ fn test_json_payload_format() {
     let private_key = "0000000000000000000000000000000000000000000000000000000000000001";
     let signer = EthereumSigner::from_private_key(private_key).unwrap();
 
-    // This indirectly tests that the JSON serialization works
-    let result = sign_order_payload(
-        &signer,
+    let message = order_signature_message(
         "ETH-USDC",
-        "SELL",
+        Side::Sell,
+        OrderType::Limit,
         "2.5",
         Some("3000.50"),
-        999999999,
-    );
+        None,
+        None,
+        TimeInForce::Gtc,
+        None,
+        None,
+        999_999_999,
+    )
+    .unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&message).unwrap();
+    assert_eq!(parsed["symbol"], "ETH-USDC");
+    assert_eq!(parsed["side"], "SELL");
+    assert_eq!(parsed["price"], "3000.50");
+    assert_eq!(parsed["nonce"], 999_999_999);
 
-    assert!(result.is_ok());
+    let signature = sign_order_payload(
+        &signer,
+        "ETH-USDC",
+        Side::Sell,
+        OrderType::Limit,
+        "2.5",
+        Some("3000.50"),
+        None,
+        None,
+        TimeInForce::Gtc,
+        None,
+        None,
+        999_999_999,
+    )
+    .unwrap();
+    assert!(signature.starts_with("0x"));
+}
+
+#[test]
+fn test_order_payload_includes_optional_fields() {
+    let message = order_signature_message(
+        "BTC-USDC",
+        Side::Sell,
+        OrderType::StopLoss,
+        "3.0",
+        Some("45000"),
+        Some("44000"),
+        Some("client-123"),
+        TimeInForce::Day,
+        Some(true),
+        Some(false),
+        424242,
+    )
+    .unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&message).unwrap();
+
+    assert_eq!(parsed["symbol"], "BTC-USDC");
+    assert_eq!(parsed["orderType"], "STOP_LOSS");
+    assert_eq!(parsed["clientOrderId"], "client-123");
+    assert_eq!(parsed["timeInForce"], "DAY");
+    assert_eq!(parsed["postOnly"], true);
+    assert_eq!(parsed["reduceOnly"], false);
+    assert_eq!(parsed["stopPrice"], "44000");
+}
+
+#[test]
+fn test_known_order_signature_vector() {
+    let private_key = "0000000000000000000000000000000000000000000000000000000000000001";
+    let signer = EthereumSigner::from_private_key(private_key).unwrap();
+
+    let signature = sign_order_payload(
+        &signer,
+        "BTC-USDC",
+        Side::Buy,
+        OrderType::Limit,
+        "1.5",
+        Some("35000"),
+        None,
+        None,
+        TimeInForce::Gtc,
+        Some(true),
+        Some(false),
+        1_725_000_000_000,
+    )
+    .unwrap();
+    let expected = "0xc9930a8ae4690361180eef3efd77cf6979fa6d4c65863d74fd6e8a1c251cbec970081b1ea899aa97a179195f70a2b175b0584b906a9103e5dba92094ed96ffcd1c";
+    assert_eq!(signature, expected);
+}
+
+#[test]
+fn test_account_tier_payload_signing() {
+    let private_key = "0000000000000000000000000000000000000000000000000000000000000001";
+    let signer = EthereumSigner::from_private_key(private_key).unwrap();
+    let nonce = 123_456_789_u64;
+
+    let helper_signature = sign_account_tier_payload(&signer, AccountTier::Premium, nonce).unwrap();
+    let manual_message = account_tier_signature_message(AccountTier::Premium, nonce).unwrap();
+    let manual_signature = signer.sign_message(&manual_message).unwrap();
+
+    assert_eq!(helper_signature, manual_signature);
+    assert!(helper_signature.starts_with("0x"));
 }
 
 #[test]

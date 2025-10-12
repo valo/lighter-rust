@@ -13,7 +13,7 @@ Method | HTTP request | Description
 
 ## create_order
 
-> Order create_order(symbol, side, order_type, quantity, price, client_order_id, time_in_force, post_only, reduce_only)
+> Order create_order(symbol, side, order_type, quantity, price, stop_price, client_order_id, time_in_force, post_only, reduce_only)
 
 Create a new order
 
@@ -38,6 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         OrderType::Limit,
         "0.1",           // quantity
         Some("45000"),   // price
+        None,            // stop_price
         None,            // client_order_id
         Some(TimeInForce::Gtc),
         Some(true),      // post_only
@@ -60,6 +61,7 @@ Name | Type | Description  | Required | Notes
 **order_type** | [**OrderType**](OrderType.md) | Order type | [required] |
 **quantity** | **String** | Order quantity | [required] |
 **price** | **Option<String>** | Limit price (required for limit orders) | [optional] |
+**stop_price** | **Option<String>** | Trigger price for stop orders | [optional] |
 **client_order_id** | **Option<String>** | Client-provided order ID | [optional] |
 **time_in_force** | **Option<TimeInForce>** | Time in force | [optional] [default to GTC]
 **post_only** | **Option<bool>** | Post-only order | [optional] [default to false]
