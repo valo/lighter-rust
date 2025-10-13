@@ -184,3 +184,20 @@ impl ApiClient {
             .map_err(|e| LighterError::Config(format!("Invalid endpoint URL: {}", e)))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn build_url_preserves_version_path() {
+        let config = Config::new()
+            .with_base_url("https://example.com/api/v3")
+            .expect("valid base url");
+
+        let client = ApiClient::new(config).expect("client created");
+        let url = client.build_url("/account").expect("url joined");
+
+        assert_eq!(url.as_str(), "https://example.com/api/v3/account");
+    }
+}
