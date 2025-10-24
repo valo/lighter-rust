@@ -77,6 +77,7 @@ pub enum AccountTier {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Pagination {
     pub page: u32,
     pub limit: u32,

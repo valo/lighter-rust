@@ -43,6 +43,26 @@ struct AccountTierSignatureData {
     nonce: u64,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CancelOrderSignatureData<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    order_id: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    client_order_id: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    symbol: Option<&'a str>,
+    nonce: u64,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct CancelAllOrdersSignatureData<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    symbol: Option<&'a str>,
+    nonce: u64,
+}
+
 pub fn order_signature_message(
     symbol: &str,
     side: Side,
@@ -104,6 +124,47 @@ pub fn sign_order_payload(
     signer.sign_message(&message)
 }
 
+pub fn cancel_order_signature_message(
+    order_id: Option<&str>,
+    client_order_id: Option<&str>,
+    symbol: Option<&str>,
+    nonce: u64,
+) -> Result<String> {
+    let payload = CancelOrderSignatureData {
+        order_id,
+        client_order_id,
+        symbol,
+        nonce,
+    };
+
+    serialize_payload(&payload)
+}
+
+pub fn sign_cancel_order_payload(
+    signer: &dyn Signer,
+    order_id: Option<&str>,
+    client_order_id: Option<&str>,
+    symbol: Option<&str>,
+    nonce: u64,
+) -> Result<String> {
+    let message = cancel_order_signature_message(order_id, client_order_id, symbol, nonce)?;
+    signer.sign_message(&message)
+}
+
+pub fn cancel_all_orders_signature_message(symbol: Option<&str>, nonce: u64) -> Result<String> {
+    let payload = CancelAllOrdersSignatureData { symbol, nonce };
+    serialize_payload(&payload)
+}
+
+pub fn sign_cancel_all_orders_payload(
+    signer: &dyn Signer,
+    symbol: Option<&str>,
+    nonce: u64,
+) -> Result<String> {
+    let message = cancel_all_orders_signature_message(symbol, nonce)?;
+    signer.sign_message(&message)
+}
+
 pub fn account_tier_signature_message(target_tier: AccountTier, nonce: u64) -> Result<String> {
     let payload = AccountTierSignatureData { target_tier, nonce };
     serialize_payload(&payload)
@@ -116,4 +177,33 @@ pub fn sign_account_tier_payload(
 ) -> Result<String> {
     let message = account_tier_signature_message(target_tier, nonce)?;
     signer.sign_message(&message)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn cancel_order_signature_message_serializes_camel_case() {
+        let message = cancel_order_signature_message(Some("order123"), None, Some("BTC-USDC"), 42)
+            .expect("message serialized");
+
+        let value: serde_json::Value = serde_json::from_str(&message).expect("json parsed");
+        assert_eq!(
+            value,
+            json!({
+                "orderId": "order123",
+                "symbol": "BTC-USDC",
+                "nonce": 42
+            })
+        );
+    }
+
+    #[test]
+    fn cancel_all_orders_signature_message_omits_symbol_when_none() {
+        let message = cancel_all_orders_signature_message(None, 7).expect("message serialized");
+        let value: serde_json::Value = serde_json::from_str(&message).expect("json parsed");
+        assert_eq!(value, json!({ "nonce": 7 }));
+    }
 }

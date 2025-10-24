@@ -2,10 +2,12 @@ use crate::client::{ApiClient, SignerClient};
 use crate::error::Result;
 use crate::models::{
     common::{OrderType, Side},
-    order::{CreateOrderRequest, TimeInForce},
+    order::{CancelAllOrdersRequest, CancelOrderRequest, CreateOrderRequest, TimeInForce},
     ApiResponse, Order, OrderFilter, Pagination, Trade,
 };
-use crate::signers::sign_order_payload;
+use crate::signers::{
+    sign_cancel_all_orders_payload, sign_cancel_order_payload, sign_order_payload,
+};
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -157,31 +159,76 @@ impl OrderApi {
         client_order_id: Option<&str>,
         symbol: Option<&str>,
     ) -> Result<()> {
-        let endpoint = match (order_id, client_order_id, symbol) {
-            (Some(id), _, _) => format!("/orders/{}", id),
-            (None, Some(cid), Some(sym)) => {
-                format!("/orders?client_order_id={}&symbol={}", cid, sym)
-            }
-            _ => {
-                return Err(crate::error::LighterError::Api {
-                    status: 400,
-                    message: "Must provide either order_id or both client_order_id and symbol"
-                        .to_string(),
-                })
-            }
+        if order_id.is_none() && (client_order_id.is_none() || symbol.is_none()) {
+            return Err(crate::error::LighterError::Api {
+                status: 400,
+                message: "Must provide either order_id or both client_order_id and symbol"
+                    .to_string(),
+            });
+        }
+
+        let nonce = self.signer_client.generate_nonce()?;
+        let signature = sign_cancel_order_payload(
+            self.signer_client.signer().as_ref(),
+            order_id,
+            client_order_id,
+            symbol,
+            nonce,
+        )?;
+
+        let request = CancelOrderRequest {
+            order_id: order_id.map(str::to_string),
+            client_order_id: client_order_id.map(str::to_string),
+            symbol: symbol.map(str::to_string),
+            signature,
+            nonce,
         };
 
-        let response: ApiResponse<serde_json::Value> =
-            self.signer_client.delete_signed(&endpoint).await?;
+        let response: ApiResponse<serde_json::Value> = self
+            .signer_client
+            .post_signed("/orders/cancel", Some(&request))
+            .await?;
 
-        if response.error.is_some() {
+        if let Some(error) = response.error {
             return Err(crate::error::LighterError::Api {
                 status: 500,
-                message: response.error.unwrap(),
+                message: error,
             });
         }
 
         Ok(())
+    }
+
+    pub async fn cancel_all_orders(&self, symbol: Option<&str>) -> Result<u32> {
+        let nonce = self.signer_client.generate_nonce()?;
+        let signature =
+            sign_cancel_all_orders_payload(self.signer_client.signer().as_ref(), symbol, nonce)?;
+
+        let request = CancelAllOrdersRequest {
+            symbol: symbol.map(str::to_string),
+            signature,
+            nonce,
+        };
+
+        let response: ApiResponse<u32> = self
+            .signer_client
+            .post_signed("/orders/cancel-all", Some(&request))
+            .await?;
+
+        if let Some(error) = response.error {
+            return Err(crate::error::LighterError::Api {
+                status: 500,
+                message: error,
+            });
+        }
+
+        match response.data {
+            Some(count) => Ok(count),
+            None => Err(crate::error::LighterError::Api {
+                status: 500,
+                message: "Missing cancellation count".to_string(),
+            }),
+        }
     }
 }
 

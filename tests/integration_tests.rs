@@ -58,18 +58,18 @@ async fn test_create_order_integration() {
         "success": true,
         "data": {
             "id": "order_123",
-            "client_order_id": "client_456",
+            "clientOrderId": "client_456",
             "symbol": "BTC-USDC",
             "side": "BUY",
-            "order_type": "LIMIT",
+            "orderType": "LIMIT",
             "status": "OPEN",
             "quantity": "0.1",
             "price": "45000.00",
-            "filled_quantity": "0",
-            "remaining_quantity": "0.1",
-            "time_in_force": "GTC",
-            "created_at": "2024-01-01T00:00:00Z",
-            "updated_at": "2024-01-01T00:00:00Z"
+            "filledQuantity": "0",
+            "remainingQuantity": "0.1",
+            "timeInForce": "GTC",
+            "createdAt": "2024-01-01T00:00:00Z",
+            "updatedAt": "2024-01-01T00:00:00Z"
         },
         "error": null,
         "timestamp": "2024-01-01T00:00:00Z"
@@ -267,21 +267,21 @@ async fn test_pagination_integration() {
                     "id": "order_1",
                     "symbol": "BTC-USDC",
                     "side": "BUY",
-                    "order_type": "LIMIT",
+                    "orderType": "LIMIT",
                     "status": "FILLED",
                     "quantity": "0.1",
-                    "filled_quantity": "0.1",
-                    "remaining_quantity": "0",
-                    "time_in_force": "GTC",
-                    "created_at": "2024-01-01T00:00:00Z",
-                    "updated_at": "2024-01-01T00:00:00Z"
+                    "filledQuantity": "0.1",
+                    "remainingQuantity": "0",
+                    "timeInForce": "GTC",
+                    "createdAt": "2024-01-01T00:00:00Z",
+                    "updatedAt": "2024-01-01T00:00:00Z"
                 }
             ],
             "pagination": {
                 "page": 1,
                 "limit": 50,
                 "total": 100,
-                "has_next": true
+                "hasNext": true
             }
         },
         "error": null,
