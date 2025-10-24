@@ -40,34 +40,7 @@ impl OrderApi {
         &self,
         filter: Option<OrderFilter>,
     ) -> Result<(Vec<Order>, Option<Pagination>)> {
-        let mut query_params = Vec::new();
-
-        if let Some(filter) = filter {
-            if let Some(symbol) = filter.symbol {
-                query_params.push(format!("symbol={}", symbol));
-            }
-            if let Some(status) = filter.status {
-                query_params.push(format!("status={:?}", status));
-            }
-            if let Some(side) = filter.side {
-                query_params.push(format!("side={:?}", side));
-            }
-            if let Some(order_type) = filter.order_type {
-                query_params.push(format!("order_type={:?}", order_type));
-            }
-            if let Some(page) = filter.page {
-                query_params.push(format!("page={}", page));
-            }
-            if let Some(limit) = filter.limit {
-                query_params.push(format!("limit={}", limit));
-            }
-        }
-
-        let endpoint = if query_params.is_empty() {
-            "/orders".to_string()
-        } else {
-            format!("/orders?{}", query_params.join("&"))
-        };
+        let endpoint = build_orders_endpoint(filter.as_ref());
 
         let response: ApiResponse<serde_json::Value> = self.client.get(&endpoint).await?;
 
@@ -209,5 +182,90 @@ impl OrderApi {
         }
 
         Ok(())
+    }
+}
+
+fn build_orders_endpoint(filter: Option<&OrderFilter>) -> String {
+    let mut query_params = Vec::new();
+
+    if let Some(filter) = filter {
+        if let Some(symbol) = filter.symbol.as_ref() {
+            query_params.push(format!("symbol={}", symbol));
+        }
+        if let Some(status) = filter.status {
+            query_params.push(format!("status={}", status.as_str()));
+        }
+        if let Some(side) = filter.side {
+            query_params.push(format!("side={}", side.as_str()));
+        }
+        if let Some(order_type) = filter.order_type {
+            query_params.push(format!("order_type={}", order_type.as_str()));
+        }
+        if let Some(start_time) = filter.start_time.as_ref() {
+            query_params.push(format!("start_time={}", start_time.timestamp_millis()));
+        }
+        if let Some(end_time) = filter.end_time.as_ref() {
+            query_params.push(format!("end_time={}", end_time.timestamp_millis()));
+        }
+        if let Some(page) = filter.page {
+            query_params.push(format!("page={}", page));
+        }
+        if let Some(limit) = filter.limit {
+            query_params.push(format!("limit={}", limit));
+        }
+    }
+
+    if query_params.is_empty() {
+        "/orders".to_string()
+    } else {
+        format!("/orders?{}", query_params.join("&"))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{OrderStatus, OrderType, Side};
+    use chrono::{TimeZone, Timelike, Utc};
+
+    #[test]
+    fn build_orders_endpoint_without_filters_returns_base_path() {
+        assert_eq!(build_orders_endpoint(None), "/orders");
+    }
+
+    #[test]
+    fn build_orders_endpoint_serializes_filters_in_api_format() {
+        let filter = OrderFilter {
+            symbol: Some("BTC-USDC".to_string()),
+            status: Some(OrderStatus::Open),
+            side: Some(Side::Buy),
+            order_type: Some(OrderType::Limit),
+            start_time: Some(
+                Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0)
+                    .unwrap()
+                    .with_nanosecond(123_000_000)
+                    .unwrap(),
+            ),
+            end_time: Some(
+                Utc.with_ymd_and_hms(2024, 1, 2, 0, 0, 0)
+                    .unwrap()
+                    .with_nanosecond(456_000_000)
+                    .unwrap(),
+            ),
+            page: Some(2),
+            limit: Some(50),
+        };
+
+        let endpoint = build_orders_endpoint(Some(&filter));
+
+        assert!(endpoint.starts_with("/orders?"));
+        assert!(endpoint.contains("symbol=BTC-USDC"));
+        assert!(endpoint.contains("status=OPEN"));
+        assert!(endpoint.contains("side=BUY"));
+        assert!(endpoint.contains("order_type=LIMIT"));
+        assert!(endpoint.contains("start_time=1704067200123"));
+        assert!(endpoint.contains("end_time=1704153600456"));
+        assert!(endpoint.contains("page=2"));
+        assert!(endpoint.contains("limit=50"));
     }
 }
