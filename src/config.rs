@@ -24,6 +24,7 @@ impl Config {
         self.base_url = Url::parse(url.as_ref())
             .map_err(|e| LighterError::Config(format!("Invalid base URL: {}", e)))?;
         ensure_trailing_slash(&mut self.base_url);
+        self.ws_url = derive_ws_url(&self.base_url)?;
         Ok(self)
     }
 
@@ -48,8 +49,9 @@ impl Default for Config {
     fn default() -> Self {
         let mut base_url = Url::parse("https://mainnet.zklighter.elliot.ai/api/v1/").unwrap();
         ensure_trailing_slash(&mut base_url);
+        let ws_url = derive_ws_url(&base_url).unwrap();
         Self {
-            ws_url: Url::parse("wss://ws.lighter.xyz").unwrap(),
+            ws_url,
             api_key: None,
             timeout_secs: 30,
             max_retries: 3,
@@ -72,6 +74,34 @@ fn ensure_trailing_slash(url: &mut Url) {
     }
 }
 
+fn derive_ws_url(base_url: &Url) -> Result<Url> {
+    let scheme = match base_url.scheme() {
+        "https" => "wss",
+        "http" => "ws",
+        other => {
+            return Err(LighterError::Config(format!(
+                "Unsupported base URL scheme: {}",
+                other
+            )))
+        }
+    };
+
+    let host = base_url
+        .host_str()
+        .ok_or_else(|| LighterError::Config("Base URL missing host".to_string()))?;
+
+    let mut ws = Url::parse(&format!("{}://{}", scheme, host))
+        .map_err(|e| LighterError::Config(format!("invalid websocket host: {}", e)))?;
+
+    if let Some(port) = base_url.port() {
+        ws.set_port(Some(port))
+            .map_err(|_| LighterError::Config("Failed to set websocket port".to_string()))?;
+    }
+
+    ws.set_path("/stream");
+    Ok(ws)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -83,6 +113,10 @@ mod tests {
         assert_eq!(
             config.base_url.as_str(),
             "https://mainnet.zklighter.elliot.ai/api/v1/"
+        );
+        assert_eq!(
+            config.ws_url.as_str(),
+            "wss://mainnet.zklighter.elliot.ai/stream"
         );
     }
 

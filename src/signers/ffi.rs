@@ -32,7 +32,7 @@ pub struct FFISigner {
     private_key: String,
     chain_id: c_int,
     api_key_index: c_int,
-    account_index: c_int,
+    account_index: c_longlong,
 }
 
 impl FFISigner {
@@ -56,7 +56,7 @@ impl FFISigner {
             private_key: clean_key.to_string(),
             chain_id: chain_id as c_int,
             api_key_index: api_key_index as c_int,
-            account_index: account_index as c_int,
+            account_index: account_index as c_longlong,
         };
 
         signer.create_client()?;
@@ -64,8 +64,6 @@ impl FFISigner {
     }
 
     fn get_library_path() -> Result<PathBuf> {
-        let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-
         let lib_name = if cfg!(target_os = "macos") && cfg!(target_arch = "aarch64") {
             "signer-arm64.dylib"
         } else if cfg!(target_os = "linux") && cfg!(target_arch = "x86_64") {
@@ -74,13 +72,60 @@ impl FFISigner {
             return Err(LighterError::Signing("Unsupported platform".to_string()));
         };
 
-        Ok(base_path.join("bin").join("signers").join(lib_name))
+        if let Ok(explicit) = std::env::var("LIGHTER_SIGNER_LIBRARY") {
+            let candidate = PathBuf::from(&explicit);
+            println!("LIGHTER_SIGNER_LIBRARY set to {}", candidate.display());
+            if candidate.exists() {
+                println!("Using Lighter signer library at {}", candidate.display());
+                return Ok(candidate);
+            }
+            println!("Specified signer library does not exist");
+        }
+
+        let base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("bin")
+            .join("signers")
+            .join(lib_name);
+        if base_path.exists() {
+            println!(
+                "Using vendored Lighter signer library at {}",
+                base_path.display()
+            );
+            return Ok(base_path);
+        }
+
+        if let Ok(venv) = std::env::var("VIRTUAL_ENV") {
+            let candidate = PathBuf::from(venv)
+                .join("lib")
+                .join("python3.13")
+                .join("site-packages")
+                .join("lighter")
+                .join("signers")
+                .join(lib_name);
+            if candidate.exists() {
+                println!(
+                    "Using venv Lighter signer library at {}",
+                    candidate.display()
+                );
+                return Ok(candidate);
+            }
+        }
+
+        Err(LighterError::Signing(
+            "Unable to locate Lighter signer library".to_string(),
+        ))
     }
 
     fn create_client(&self) -> Result<()> {
         unsafe {
             let create_client_fn: Symbol<
-                unsafe extern "C" fn(*const c_char, *const c_char, c_int, c_int, c_int) -> StrOrErr,
+                unsafe extern "C" fn(
+                    *const c_char,
+                    *const c_char,
+                    c_int,
+                    c_int,
+                    c_longlong,
+                ) -> *const c_char,
             > = self
                 .library
                 .get(b"CreateClient")
@@ -99,17 +144,9 @@ impl FFISigner {
                 self.account_index,
             );
 
-            if !result.err.is_null() {
-                let error_str = CStr::from_ptr(result.err).to_string_lossy().to_string();
-                libc::free(result.err as *mut libc::c_void);
-                if !result.str.is_null() {
-                    libc::free(result.str as *mut libc::c_void);
-                }
+            if !result.is_null() {
+                let error_str = CStr::from_ptr(result).to_string_lossy().to_string();
                 return Err(LighterError::Signing(error_str));
-            }
-
-            if !result.str.is_null() {
-                libc::free(result.str as *mut libc::c_void);
             }
 
             Ok(())
@@ -120,10 +157,6 @@ impl FFISigner {
         unsafe {
             if !result.err.is_null() {
                 let error_str = CStr::from_ptr(result.err).to_string_lossy().to_string();
-                libc::free(result.err as *mut libc::c_void);
-                if !result.str.is_null() {
-                    libc::free(result.str as *mut libc::c_void);
-                }
                 return Err(LighterError::Signing(error_str));
             }
 
@@ -132,7 +165,6 @@ impl FFISigner {
             }
 
             let value_str = CStr::from_ptr(result.str).to_string_lossy().to_string();
-            libc::free(result.str as *mut libc::c_void);
 
             Ok(value_str)
         }
@@ -182,8 +214,8 @@ impl FFISigner {
             };
 
             let tif_int = match time_in_force {
-                TimeInForce::Gtc => 0,
-                TimeInForce::Ioc => 1,
+                TimeInForce::Ioc => 0,
+                TimeInForce::Gtc => 1,
                 TimeInForce::Fok => 2,
                 TimeInForce::Day => 3,
             };

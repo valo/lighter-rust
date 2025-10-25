@@ -34,6 +34,10 @@ impl LighterTransactionApi {
         Ok(Self { client, signer })
     }
 
+    pub fn with_signer(client: ApiClient, signer: FFISigner) -> Self {
+        Self { client, signer }
+    }
+
     async fn send_tx(&self, tx_type: i32, tx_info: String) -> Result<TxResponse> {
         let request = SendTxRequest { tx_type, tx_info };
 
@@ -57,8 +61,8 @@ impl LighterTransactionApi {
         base_amount: i64,
         price: i32,
         is_ask: bool,
-        _order_type: i32,
-        _time_in_force: i32,
+        order_type: crate::models::common::OrderType,
+        time_in_force: crate::models::order::TimeInForce,
         reduce_only: bool,
         trigger_price: i32,
         order_expiry: i64,
@@ -70,8 +74,8 @@ impl LighterTransactionApi {
             base_amount,
             price,
             is_ask,
-            crate::models::common::OrderType::Limit, // Convert from int later
-            crate::models::order::TimeInForce::Gtc,  // Convert from int later
+            order_type,
+            time_in_force,
             reduce_only,
             trigger_price,
             order_expiry,

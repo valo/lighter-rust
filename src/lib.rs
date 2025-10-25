@@ -34,10 +34,13 @@ pub mod api;
 pub mod client;
 pub mod config;
 pub mod error;
+pub mod ffi_client;
 pub mod logging;
+pub mod metadata;
 pub mod models;
 pub mod nonce;
 pub mod signers;
+pub mod trading;
 
 // Re-export specific items to avoid ambiguous glob re-exports
 pub use api::{
@@ -51,6 +54,7 @@ pub use config::Config;
 pub use error::{LighterError, Result};
 pub use logging::{init_logging, init_logging_with_filter};
 // Re-export models modules individually
+pub use ffi_client::LighterFfiClient;
 pub use models::account::Account;
 pub use models::common::*;
 pub use models::order::{CreateOrderRequest, Order, TimeInForce};
@@ -58,6 +62,7 @@ pub use signers::{
     account_tier_signature_message, ethereum::*, ffi::*, order_signature_message,
     sign_account_tier_payload, sign_order_payload,
 };
+pub use trading::{LighterFfiTradingClient, SubmittedOrder};
 
 /// Main client for interacting with the Lighter API
 #[derive(Debug)]
