@@ -246,13 +246,13 @@ fn build_orders_endpoint(filter: Option<&OrderFilter>) -> String {
             query_params.push(format!("side={}", side.as_str()));
         }
         if let Some(order_type) = filter.order_type {
-            query_params.push(format!("order_type={}", order_type.as_str()));
+            query_params.push(format!("orderType={}", order_type.as_str()));
         }
         if let Some(start_time) = filter.start_time.as_ref() {
-            query_params.push(format!("start_time={}", start_time.timestamp_millis()));
+            query_params.push(format!("startTime={}", start_time.timestamp_millis()));
         }
         if let Some(end_time) = filter.end_time.as_ref() {
-            query_params.push(format!("end_time={}", end_time.timestamp_millis()));
+            query_params.push(format!("endTime={}", end_time.timestamp_millis()));
         }
         if let Some(page) = filter.page {
             query_params.push(format!("page={}", page));
@@ -309,9 +309,9 @@ mod tests {
         assert!(endpoint.contains("symbol=BTC-USDC"));
         assert!(endpoint.contains("status=OPEN"));
         assert!(endpoint.contains("side=BUY"));
-        assert!(endpoint.contains("order_type=LIMIT"));
-        assert!(endpoint.contains("start_time=1704067200123"));
-        assert!(endpoint.contains("end_time=1704153600456"));
+        assert!(endpoint.contains("orderType=LIMIT"));
+        assert!(endpoint.contains("startTime=1704067200123"));
+        assert!(endpoint.contains("endTime=1704153600456"));
         assert!(endpoint.contains("page=2"));
         assert!(endpoint.contains("limit=50"));
     }
