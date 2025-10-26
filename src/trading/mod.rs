@@ -64,12 +64,12 @@ impl LighterFfiTradingClient {
         let amount = scale_decimal(base_amount, size_decimals)
             .ok_or_else(|| LighterError::Signing("unable to convert order size".to_string()))?;
 
-        let price = 0i32;
+        let price = lighter_minimum_price_tick(&info);
         let is_ask = !is_buy;
         let trigger_price = 0i32;
         let order_expiry = 0i64;
         let nonce = self.nonce_manager.generate()? as i64;
-        let client_order_index = nonce;
+        let client_order_index = normalise_client_order_index(nonce)?;
 
         let (order, response) = self
             .transaction_api
@@ -128,6 +128,32 @@ fn scale_decimal(value: &Decimal, decimals: u32) -> Option<i64> {
     }
     let multiplier = Decimal::from(10u64.pow(decimals));
     (value * multiplier).to_i64()
+}
+
+fn lighter_minimum_price_tick(_info: &MarketInfo) -> i32 {
+    // The signer rejects prices below 1 even for market orders.
+    // Align with the Python SDK by using 1 as the placeholder price.
+    1
+}
+
+const LIGHTER_MAX_CLIENT_ORDER_INDEX: i64 = ((1u64 << 48) - 1) as i64;
+const LIGHTER_CLIENT_ORDER_SCALE: i64 = 100;
+
+fn normalise_client_order_index(raw: i64) -> Result<i64> {
+    if (1..=LIGHTER_MAX_CLIENT_ORDER_INDEX).contains(&raw) {
+        return Ok(raw);
+    }
+
+    let timestamp_ms = raw.div_euclid(1000);
+    let sequence = (raw.rem_euclid(1000)).min(LIGHTER_CLIENT_ORDER_SCALE - 1);
+
+    let scaled = timestamp_ms
+        .checked_mul(LIGHTER_CLIENT_ORDER_SCALE)
+        .and_then(|base| base.checked_add(sequence))
+        .ok_or_else(|| LighterError::Signing("unable to normalise Lighter client order index".to_string()))?;
+
+    let clamped = scaled.clamp(1, LIGHTER_MAX_CLIENT_ORDER_INDEX);
+    Ok(clamped)
 }
 
 #[cfg(test)]

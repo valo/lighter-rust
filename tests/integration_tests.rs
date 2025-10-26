@@ -28,7 +28,7 @@ async fn test_get_account_integration() {
 
     let mut server = mockito::Server::new_async().await;
     let _m = server
-        .mock("GET", "/account")
+        .mock("GET", "/api/v1/account")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(account_response.to_string())
@@ -77,7 +77,7 @@ async fn test_create_order_integration() {
 
     let mut server = mockito::Server::new_async().await;
     let _m = server
-        .mock("POST", "/orders")
+        .mock("POST", "/api/v1/orders")
         .match_header("authorization", "Bearer test_key")
         .with_status(201)
         .with_header("content-type", "application/json")
@@ -142,7 +142,7 @@ async fn test_get_market_data_integration() {
 
     let mut server = mockito::Server::new_async().await;
     let _m = server
-        .mock("GET", "/market/stats/BTC-USDC")
+        .mock("GET", "/api/v1/market/stats/BTC-USDC")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(market_stats_response.to_string())
@@ -174,7 +174,7 @@ async fn test_error_handling_integration() {
 
     let mut server = mockito::Server::new_async().await;
     let _m = server
-        .mock("POST", "/orders")
+        .mock("POST", "/api/v1/orders")
         .with_status(400)
         .with_header("content-type", "application/json")
         .with_body(error_response.to_string())
@@ -222,7 +222,7 @@ async fn test_error_handling_integration() {
 async fn test_rate_limit_handling() {
     let mut server = mockito::Server::new_async().await;
     let _m = server
-        .mock("GET", "/account")
+        .mock("GET", "/api/v1/account")
         .with_status(429)
         .with_header("content-type", "application/json")
         .with_body(
@@ -290,7 +290,7 @@ async fn test_pagination_integration() {
 
     let mut server = mockito::Server::new_async().await;
     let _m = server
-        .mock("GET", "/orders?page=1")
+        .mock("GET", "/api/v1/orders?page=1")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(orders_response.to_string())

@@ -23,6 +23,7 @@ impl Config {
     pub fn with_base_url<S: AsRef<str>>(mut self, url: S) -> Result<Self> {
         self.base_url = Url::parse(url.as_ref())
             .map_err(|e| LighterError::Config(format!("Invalid base URL: {}", e)))?;
+        ensure_api_path(&mut self.base_url);
         ensure_trailing_slash(&mut self.base_url);
         self.ws_url = derive_ws_url(&self.base_url)?;
         Ok(self)
@@ -48,6 +49,7 @@ impl Config {
 impl Default for Config {
     fn default() -> Self {
         let mut base_url = Url::parse("https://mainnet.zklighter.elliot.ai/api/v1/").unwrap();
+        ensure_api_path(&mut base_url);
         ensure_trailing_slash(&mut base_url);
         let ws_url = derive_ws_url(&base_url).unwrap();
         Self {
@@ -64,13 +66,22 @@ fn ensure_trailing_slash(url: &mut Url) {
     let mut path = url.path().to_string();
 
     if path.is_empty() {
-        url.set_path("/");
-        return;
+        path.push('/');
     }
 
     if !path.ends_with('/') {
         path.push('/');
+    }
+
+    if path != url.path() {
         url.set_path(&path);
+    }
+}
+
+fn ensure_api_path(url: &mut Url) {
+    let path = url.path().trim_matches('/');
+    if path.is_empty() {
+        url.set_path("/api/v1/");
     }
 }
 
@@ -128,5 +139,18 @@ mod tests {
 
         assert!(config.base_url.path().ends_with('/'));
         assert_eq!(config.base_url.as_str(), "https://example.com/api/v2/");
+    }
+
+    #[test]
+    fn with_base_url_without_path_defaults_to_api_v1() {
+        let config = Config::new()
+            .with_base_url("https://example.com")
+            .expect("valid url");
+
+        assert_eq!(
+            config.base_url.as_str(),
+            "https://example.com/api/v1/"
+        );
+        assert_eq!(config.ws_url.as_str(), "wss://example.com/stream");
     }
 }
