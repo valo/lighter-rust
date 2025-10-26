@@ -147,10 +147,7 @@ mod tests {
             .with_base_url("https://example.com")
             .expect("valid url");
 
-        assert_eq!(
-            config.base_url.as_str(),
-            "https://example.com/api/v1/"
-        );
+        assert_eq!(config.base_url.as_str(), "https://example.com/api/v1/");
         assert_eq!(config.ws_url.as_str(), "wss://example.com/stream");
     }
 }

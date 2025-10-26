@@ -150,7 +150,9 @@ fn normalise_client_order_index(raw: i64) -> Result<i64> {
     let scaled = timestamp_ms
         .checked_mul(LIGHTER_CLIENT_ORDER_SCALE)
         .and_then(|base| base.checked_add(sequence))
-        .ok_or_else(|| LighterError::Signing("unable to normalise Lighter client order index".to_string()))?;
+        .ok_or_else(|| {
+            LighterError::Signing("unable to normalise Lighter client order index".to_string())
+        })?;
 
     let clamped = scaled.clamp(1, LIGHTER_MAX_CLIENT_ORDER_INDEX);
     Ok(clamped)
