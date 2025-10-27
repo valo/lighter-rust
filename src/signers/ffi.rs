@@ -8,12 +8,15 @@ use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int, c_longlong};
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[repr(C)]
 pub struct StrOrErr {
     pub str: *mut c_char,
     pub err: *mut c_char,
 }
+
+const DEFAULT_AUTH_TOKEN_TTL_SECS: i64 = 10 * 60;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
@@ -319,6 +322,28 @@ impl FFISigner {
                 nonce as c_longlong,
             );
 
+            self.parse_result(result)
+        }
+    }
+
+    pub fn create_auth_token_with_expiry(&self, deadline: Option<i64>) -> Result<String> {
+        unsafe {
+            let create_auth_fn: Symbol<unsafe extern "C" fn(c_longlong) -> StrOrErr> = self
+                .library
+                .get(b"CreateAuthToken")
+                .map_err(|e| LighterError::Signing(e.to_string()))?;
+
+            let deadline_secs = match deadline {
+                Some(value) => value,
+                None => {
+                    let now = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .map_err(|err| LighterError::Signing(err.to_string()))?;
+                    (now.as_secs() as i64) + DEFAULT_AUTH_TOKEN_TTL_SECS
+                }
+            };
+
+            let result = create_auth_fn(deadline_secs as c_longlong);
             self.parse_result(result)
         }
     }

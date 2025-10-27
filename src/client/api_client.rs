@@ -1,6 +1,11 @@
 use crate::config::Config;
 use crate::error::{LighterError, Result};
-use reqwest::{Client, Method, Response};
+use reqwest::{
+    Client,
+    Method,
+    Response,
+    header::{HeaderName, HeaderValue, AUTHORIZATION, CONTENT_TYPE, USER_AGENT},
+};
 use serde::Serialize;
 use serde::{de::DeserializeOwned, Deserialize};
 use std::time::Duration;
@@ -34,7 +39,14 @@ impl ApiClient {
     where
         T: DeserializeOwned,
     {
-        self.request(Method::GET, endpoint, None::<()>).await
+        self.request(Method::GET, endpoint, None::<()>, None).await
+    }
+
+    pub async fn get_with_headers<T>(&self, endpoint: &str, headers: &[(&str, &str)]) -> Result<T>
+    where
+        T: DeserializeOwned,
+    {
+        self.request(Method::GET, endpoint, None::<()>, Some(headers)).await
     }
 
     pub async fn post<T, B>(&self, endpoint: &str, body: Option<B>) -> Result<T>
@@ -42,7 +54,7 @@ impl ApiClient {
         T: DeserializeOwned,
         B: Serialize + Clone,
     {
-        self.request(Method::POST, endpoint, body).await
+        self.request(Method::POST, endpoint, body, None).await
     }
 
     pub async fn put<T, B>(&self, endpoint: &str, body: Option<B>) -> Result<T>
@@ -50,14 +62,14 @@ impl ApiClient {
         T: DeserializeOwned,
         B: Serialize + Clone,
     {
-        self.request(Method::PUT, endpoint, body).await
+        self.request(Method::PUT, endpoint, body, None).await
     }
 
     pub async fn delete<T>(&self, endpoint: &str) -> Result<T>
     where
         T: DeserializeOwned,
     {
-        self.request(Method::DELETE, endpoint, None::<()>).await
+        self.request(Method::DELETE, endpoint, None::<()>, None).await
     }
 
     pub async fn fetch_next_nonce(&self, account_index: i32, api_key_index: i32) -> Result<u64> {
@@ -72,7 +84,13 @@ impl ApiClient {
         Ok(response.nonce)
     }
 
-    async fn request<T, B>(&self, method: Method, endpoint: &str, body: Option<B>) -> Result<T>
+    async fn request<T, B>(
+        &self,
+        method: Method,
+        endpoint: &str,
+        body: Option<B>,
+        headers: Option<&[(&str, &str)]>,
+    ) -> Result<T>
     where
         T: DeserializeOwned,
         B: Serialize + Clone,
@@ -85,12 +103,33 @@ impl ApiClient {
             let mut request_builder = self.client.request(method.clone(), url.clone());
 
             if let Some(api_key) = &self.config.api_key {
-                request_builder =
-                    request_builder.header("Authorization", format!("Bearer {}", api_key));
+                let custom_auth = headers
+                    .map(|pairs| {
+                        pairs
+                            .iter()
+                            .any(|(name, _)| name.eq_ignore_ascii_case(AUTHORIZATION.as_str()))
+                    })
+                    .unwrap_or(false);
+                if !custom_auth {
+                    request_builder =
+                        request_builder.header(AUTHORIZATION, format!("Bearer {}", api_key));
+                }
             }
 
-            request_builder = request_builder.header("Content-Type", "application/json");
-            request_builder = request_builder.header("User-Agent", "lighter-rust/0.1.0");
+            request_builder = request_builder.header(CONTENT_TYPE, "application/json");
+            request_builder = request_builder.header(USER_AGENT, "lighter-rust/0.1.0");
+
+            if let Some(extra_headers) = headers {
+                for (name, value) in extra_headers.iter() {
+                    let header_name = HeaderName::from_bytes(name.as_bytes()).map_err(|err| {
+                        LighterError::Config(format!("Invalid header name {name}: {err}"))
+                    })?;
+                    let header_value = HeaderValue::from_str(value).map_err(|err| {
+                        LighterError::Config(format!("Invalid header value for {name}: {err}"))
+                    })?;
+                    request_builder = request_builder.header(header_name, header_value);
+                }
+            }
 
             if let Some(ref body) = body {
                 request_builder = request_builder.json(body);

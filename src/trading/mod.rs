@@ -22,6 +22,16 @@ pub struct SubmittedOrder {
     pub response: crate::api::transaction_api::TxResponse,
 }
 
+impl SubmittedOrder {
+    pub fn order_id(&self) -> Option<&str> {
+        extract_str(&self.order, &["orderId", "order_id", "id"])
+    }
+
+    pub fn client_order_id(&self) -> Option<&str> {
+        extract_str(&self.order, &["clientOrderId", "client_order_id"])
+    }
+}
+
 impl LighterFfiTradingClient {
     pub async fn new(
         config: Config,
@@ -111,6 +121,78 @@ impl LighterFfiTradingClient {
         Ok(SubmittedOrder { order, response })
     }
 
+    pub async fn create_limit_order(
+        &self,
+        symbol: &str,
+        is_buy: bool,
+        base_amount: &Decimal,
+        limit_price: &Decimal,
+        reduce_only: bool,
+        time_in_force: crate::models::order::TimeInForce,
+    ) -> Result<SubmittedOrder> {
+        let info = self.market(symbol).await?;
+        let size_decimals = info.supported_size_decimals.unwrap_or(0);
+        let price_decimals = info.supported_price_decimals.unwrap_or(0);
+
+        let amount = scale_decimal(base_amount, size_decimals)
+            .ok_or_else(|| LighterError::Signing("unable to convert order size".to_string()))?;
+        if amount <= 0 {
+            return Err(LighterError::Signing(
+                "lighter order size must be positive".to_string(),
+            ));
+        }
+
+        let price_scaled = scale_decimal(limit_price, price_decimals)
+            .ok_or_else(|| LighterError::Signing("unable to convert order price".to_string()))?;
+        if price_scaled <= 0 {
+            return Err(LighterError::Signing(
+                "lighter limit price must be positive".to_string(),
+            ));
+        }
+        let price: i32 = price_scaled.try_into().map_err(|_| {
+            LighterError::Signing("lighter limit price exceeds supported range".to_string())
+        })?;
+
+        let is_ask = !is_buy;
+        let trigger_price = 0i32;
+        let order_expiry = 0i64;
+        let nonce = self.nonce_manager.generate()? as i64;
+        let client_order_index = normalise_client_order_index(nonce)?;
+
+        let (order, response) = self
+            .transaction_api
+            .create_order(
+                info.market_id,
+                client_order_index,
+                amount,
+                price,
+                is_ask,
+                crate::models::common::OrderType::Limit,
+                time_in_force,
+                reduce_only,
+                trigger_price,
+                order_expiry,
+                nonce,
+            )
+            .await?;
+
+        Ok(SubmittedOrder { order, response })
+    }
+
+    pub async fn cancel_order(
+        &self,
+        symbol: &str,
+        order_id: &str,
+    ) -> Result<crate::api::transaction_api::TxResponse> {
+        let info = self.market(symbol).await?;
+        let nonce = self.nonce_manager.generate()? as i64;
+        let client_cancel_index = normalise_client_order_index(nonce)?;
+
+        self.transaction_api
+            .cancel_order(info.market_id, client_cancel_index, order_id, nonce)
+            .await
+    }
+
     async fn market(&self, symbol: &str) -> Result<MarketInfo> {
         let key = symbol.to_uppercase();
         if let Some(info) = self.markets.read().await.get(&key) {
@@ -170,6 +252,11 @@ fn normalise_client_order_index(raw: i64) -> Result<i64> {
 
     let clamped = scaled.clamp(1, LIGHTER_MAX_CLIENT_ORDER_INDEX);
     Ok(clamped)
+}
+
+fn extract_str<'a>(value: &'a serde_json::Value, keys: &[&str]) -> Option<&'a str> {
+    keys.iter()
+        .find_map(|key| value.get(key).and_then(serde_json::Value::as_str))
 }
 
 #[cfg(test)]
