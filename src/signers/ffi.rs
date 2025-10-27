@@ -206,19 +206,9 @@ impl FFISigner {
                 .get(b"SignCreateOrder")
                 .map_err(|e| LighterError::Signing(e.to_string()))?;
 
-            let order_type_int = match order_type {
-                OrderType::Limit => 0,
-                OrderType::Market => 1,
-                OrderType::StopLoss => 2,
-                OrderType::TakeProfit => 3,
-            };
+            let order_type_int = order_type as c_int;
 
-            let tif_int = match time_in_force {
-                TimeInForce::Ioc => 0,
-                TimeInForce::Gtc => 1,
-                TimeInForce::Fok => 2,
-                TimeInForce::Day => 3,
-            };
+            let tif_int = time_in_force as c_int;
 
             let result = sign_fn(
                 market_index as c_int,

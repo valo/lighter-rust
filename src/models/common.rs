@@ -19,10 +19,13 @@ pub enum Side {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum OrderType {
-    Market,
     Limit,
+    Market,
     StopLoss,
+    StopLossLimit,
     TakeProfit,
+    TakeProfitLimit,
+    Twap,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

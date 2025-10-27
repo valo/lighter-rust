@@ -38,6 +38,9 @@ impl LighterFfiTradingClient {
         }
 
         let api_client = ApiClient::new(config.clone())?;
+        let initial_nonce = api_client
+            .fetch_next_nonce(account_index, api_key_index)
+            .await?;
         let base_url = config.base_url.clone();
         let signing_url = build_signing_url(&base_url)?;
         let signer = FFISigner::new(&signing_url, private_key, api_key_index, account_index)?;
@@ -47,7 +50,7 @@ impl LighterFfiTradingClient {
             transaction_api,
             metadata,
             markets: RwLock::new(markets),
-            nonce_manager: NonceManager::new(),
+            nonce_manager: NonceManager::with_seed(initial_nonce),
         })
     }
 
@@ -56,15 +59,32 @@ impl LighterFfiTradingClient {
         symbol: &str,
         is_buy: bool,
         base_amount: &Decimal,
+        limit_price: &Decimal,
         reduce_only: bool,
     ) -> Result<SubmittedOrder> {
         let info = self.market(symbol).await?;
         let size_decimals = info.supported_size_decimals.unwrap_or(0);
+        let price_decimals = info.supported_price_decimals.unwrap_or(0);
 
         let amount = scale_decimal(base_amount, size_decimals)
             .ok_or_else(|| LighterError::Signing("unable to convert order size".to_string()))?;
+        if amount <= 0 {
+            return Err(LighterError::Signing(
+                "lighter order size must be positive".to_string(),
+            ));
+        }
 
-        let price = lighter_minimum_price_tick(&info);
+        let price_scaled = scale_decimal(limit_price, price_decimals)
+            .ok_or_else(|| LighterError::Signing("unable to convert order price".to_string()))?;
+        if price_scaled <= 0 {
+            return Err(LighterError::Signing(
+                "lighter limit price must be positive".to_string(),
+            ));
+        }
+        let price: i32 = price_scaled.try_into().map_err(|_| {
+            LighterError::Signing("lighter limit price exceeds supported range".to_string())
+        })?;
+
         let is_ask = !is_buy;
         let trigger_price = 0i32;
         let order_expiry = 0i64;
@@ -128,12 +148,6 @@ fn scale_decimal(value: &Decimal, decimals: u32) -> Option<i64> {
     }
     let multiplier = Decimal::from(10u64.pow(decimals));
     (value * multiplier).to_i64()
-}
-
-fn lighter_minimum_price_tick(_info: &MarketInfo) -> i32 {
-    // The signer rejects prices below 1 even for market orders.
-    // Align with the Python SDK by using 1 as the placeholder price.
-    1
 }
 
 const LIGHTER_MAX_CLIENT_ORDER_INDEX: i64 = ((1u64 << 48) - 1) as i64;

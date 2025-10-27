@@ -1,8 +1,8 @@
 use crate::config::Config;
 use crate::error::{LighterError, Result};
 use reqwest::{Client, Method, Response};
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::{de::DeserializeOwned, Deserialize};
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{debug, error, warn};
@@ -58,6 +58,18 @@ impl ApiClient {
         T: DeserializeOwned,
     {
         self.request(Method::DELETE, endpoint, None::<()>).await
+    }
+
+    pub async fn fetch_next_nonce(&self, account_index: i32, api_key_index: i32) -> Result<u64> {
+        #[derive(Deserialize)]
+        struct NextNonceResponse {
+            nonce: u64,
+        }
+
+        let endpoint =
+            format!("/nextNonce?account_index={account_index}&api_key_index={api_key_index}");
+        let response: NextNonceResponse = self.get(&endpoint).await?;
+        Ok(response.nonce)
     }
 
     async fn request<T, B>(&self, method: Method, endpoint: &str, body: Option<B>) -> Result<T>

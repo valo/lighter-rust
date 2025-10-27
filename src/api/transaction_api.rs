@@ -3,12 +3,19 @@ use crate::error::{LighterError, Result};
 use crate::signers::FFISigner;
 use serde::{Deserialize, Serialize};
 use serde_json;
+use tracing::debug;
 
 #[derive(Debug, Clone, Serialize)]
 struct SendTxRequest {
     tx_type: i32,
     tx_info: String,
 }
+
+const TX_TYPE_CREATE_ORDER: i32 = 14;
+const TX_TYPE_CANCEL_ORDER: i32 = 15;
+const TX_TYPE_CANCEL_ALL_ORDERS: i32 = 16;
+const TX_TYPE_TRANSFER: i32 = 12;
+const TX_TYPE_WITHDRAW: i32 = 13;
 
 #[derive(Debug, Deserialize)]
 pub struct TxResponse {
@@ -39,9 +46,14 @@ impl LighterTransactionApi {
     }
 
     async fn send_tx(&self, tx_type: i32, tx_info: String) -> Result<TxResponse> {
-        let request = SendTxRequest { tx_type, tx_info };
+        let payload = SendTxRequest { tx_type, tx_info };
 
-        let response: TxResponse = self.client.post("/send_tx", Some(request)).await?;
+        if let Ok(payload_json) = serde_json::to_string(&payload) {
+            debug!(target: "lighter::http", payload = payload_json, "Sending Lighter HTTP sendTx request");
+            debug!(target: "lighter::http", "Lighter HTTP sendTx payload: {}", payload_json);
+        }
+
+        let response: TxResponse = self.client.post("/sendTx", Some(payload)).await?;
 
         if response.code != 200 {
             return Err(LighterError::Api {
@@ -83,7 +95,7 @@ impl LighterTransactionApi {
         )?;
 
         let order_data: serde_json::Value = serde_json::from_str(&tx_info)?;
-        let response = self.send_tx(1, tx_info).await?; // TX_TYPE_CREATE_ORDER = 1
+        let response = self.send_tx(TX_TYPE_CREATE_ORDER, tx_info).await?;
 
         Ok((order_data, response))
     }
@@ -102,7 +114,7 @@ impl LighterTransactionApi {
             nonce,
         )?;
 
-        self.send_tx(2, tx_info).await // TX_TYPE_CANCEL_ORDER = 2
+        self.send_tx(TX_TYPE_CANCEL_ORDER, tx_info).await
     }
 
     pub async fn cancel_all_orders(
@@ -115,16 +127,16 @@ impl LighterTransactionApi {
             self.signer
                 .sign_cancel_all_orders(market_index, client_cancel_index, nonce)?;
 
-        self.send_tx(3, tx_info).await // TX_TYPE_CANCEL_ALL = 3
+        self.send_tx(TX_TYPE_CANCEL_ALL_ORDERS, tx_info).await
     }
 
     pub async fn transfer(&self, receiver: &str, amount: i64, nonce: i64) -> Result<TxResponse> {
         let tx_info = self.signer.sign_transfer(receiver, amount, nonce)?;
-        self.send_tx(4, tx_info).await // TX_TYPE_TRANSFER = 4
+        self.send_tx(TX_TYPE_TRANSFER, tx_info).await
     }
 
     pub async fn withdraw(&self, receiver: &str, amount: i64, nonce: i64) -> Result<TxResponse> {
         let tx_info = self.signer.sign_withdraw(receiver, amount, nonce)?;
-        self.send_tx(5, tx_info).await // TX_TYPE_WITHDRAW = 5
+        self.send_tx(TX_TYPE_WITHDRAW, tx_info).await
     }
 }

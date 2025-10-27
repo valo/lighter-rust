@@ -26,10 +26,10 @@ pub struct Order {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TimeInForce {
-    Gtc, // Good Till Cancelled
     Ioc, // Immediate Or Cancel
-    Fok, // Fill Or Kill
-    Day, // Good For Day
+    Gtc, // Good Till Cancelled
+    Day, // Day order (expires at end of session)
+    Po,  // Post Only
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

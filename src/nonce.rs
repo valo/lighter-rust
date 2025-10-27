@@ -1,43 +1,46 @@
 use crate::error::{LighterError, Result};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug)]
 pub struct NonceManager {
-    counter: AtomicU64,
-    last_timestamp: AtomicU64,
+    last_nonce: AtomicU64,
 }
 
 impl NonceManager {
     pub fn new() -> Self {
         Self {
-            counter: AtomicU64::new(0),
-            last_timestamp: AtomicU64::new(0),
+            last_nonce: AtomicU64::new(0),
         }
     }
 
+    pub fn with_seed(next_nonce: u64) -> Self {
+        let manager = Self::new();
+        manager.synchronise(next_nonce);
+        manager
+    }
+
     pub fn generate(&self) -> Result<u64> {
-        let current_timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_err(|e| LighterError::Nonce(format!("Time error: {}", e)))?
-            .as_millis() as u64;
-
-        let last_timestamp = self.last_timestamp.load(Ordering::Acquire);
-
-        if current_timestamp > last_timestamp {
-            self.last_timestamp
-                .store(current_timestamp, Ordering::Release);
-            self.counter.store(0, Ordering::Release);
-            Ok(current_timestamp * 1000)
-        } else {
-            let counter = self.counter.fetch_add(1, Ordering::AcqRel);
-            if counter >= 999 {
-                return Err(LighterError::Nonce(
-                    "Too many nonces generated in the same millisecond".to_string(),
-                ));
+        loop {
+            let previous = self.last_nonce.load(Ordering::Acquire);
+            let candidate = previous
+                .checked_add(1)
+                .ok_or_else(|| LighterError::Nonce("nonce overflow".to_string()))?;
+            if self
+                .last_nonce
+                .compare_exchange(previous, candidate, Ordering::AcqRel, Ordering::Acquire)
+                .is_ok()
+            {
+                return Ok(candidate);
             }
-            Ok(last_timestamp * 1000 + counter + 1)
         }
+    }
+
+    pub fn synchronise(&self, next_nonce: u64) {
+        if next_nonce == 0 {
+            return;
+        }
+        self.last_nonce
+            .store(next_nonce.saturating_sub(1), Ordering::Release);
     }
 }
 
@@ -75,8 +78,8 @@ mod tests {
         for _ in 0..50 {
             let nonce = manager.generate().unwrap();
             assert!(
-                nonce > previous,
-                "Nonce {} is not greater than previous {}",
+                nonce == previous + 1,
+                "Nonce {} is not exactly previous + 1 {}",
                 nonce,
                 previous
             );
@@ -121,72 +124,11 @@ mod tests {
     }
 
     #[test]
-    fn test_nonce_timestamp_format() {
+    fn test_nonce_respects_time_progression() {
         let manager = NonceManager::new();
-        let nonce = manager.generate().unwrap();
-
-        // Nonce should be a timestamp in microseconds (13+ digits)
-        assert!(
-            nonce > 1_000_000_000_000,
-            "Nonce should be at least 13 digits"
-        );
-
-        // The nonce should be close to current time in microseconds
-        let current_time_micros = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64
-            * 1000;
-
-        // Allow for 1 second difference due to execution time
-        assert!(nonce <= current_time_micros + 1_000_000);
-        assert!(nonce >= current_time_micros - 1_000_000);
-    }
-
-    #[test]
-    fn test_nonce_counter_reset() {
-        let manager = NonceManager::new();
-
-        // Generate a nonce
-        let first_nonce = manager.generate().unwrap();
-
-        // Sleep for a bit to ensure timestamp changes
-        std::thread::sleep(std::time::Duration::from_millis(2));
-
-        // Generate another nonce - counter should reset with new timestamp
-        let second_nonce = manager.generate().unwrap();
-
-        // The second nonce should be based on a new timestamp
-        assert!(second_nonce > first_nonce);
-
-        // The difference should be at least 1 millisecond in microseconds (1000)
-        assert!(second_nonce - first_nonce >= 1000);
-    }
-
-    #[test]
-    fn test_nonce_rapid_generation() {
-        let manager = NonceManager::new();
-        let mut nonces = Vec::new();
-
-        // Generate many nonces rapidly in the same millisecond
-        for _ in 0..100 {
-            match manager.generate() {
-                Ok(nonce) => nonces.push(nonce),
-                Err(e) => {
-                    // If we hit the limit, that's expected behavior
-                    if let LighterError::Nonce(msg) = e {
-                        assert!(msg.contains("Too many nonces"));
-                        break;
-                    } else {
-                        panic!("Unexpected error: {}", e);
-                    }
-                }
-            }
-        }
-
-        // Verify all generated nonces are unique
-        let unique_nonces: HashSet<_> = nonces.iter().collect();
-        assert_eq!(unique_nonces.len(), nonces.len());
+        let first = manager.generate().unwrap();
+        let second = manager.generate().unwrap();
+        assert_eq!(second, first + 1);
     }
 
     #[test]
@@ -197,5 +139,14 @@ mod tests {
         // Both should generate valid nonces
         assert!(manager1.generate().is_ok());
         assert!(manager2.generate().is_ok());
+    }
+
+    #[test]
+    fn test_nonce_synchronise_uses_seed() {
+        let manager = NonceManager::with_seed(1_234_567_890_000);
+        let first = manager.generate().expect("nonce");
+        assert_eq!(first, 1_234_567_890_000);
+        let second = manager.generate().expect("nonce");
+        assert_eq!(second, first + 1);
     }
 }
